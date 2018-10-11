@@ -1,7 +1,10 @@
 NDPI_SRC := ../../src
 NDPI_PRO := ${NDPI_SRC}/lib/protocols
+LDPI_SRC := ../lpi/src
+LDPI_PRO_T := ${LDPI_SRC}/tcp
+LDPI_PRO_U := ${LDPI_SRC}/udp
 
-ccflags-y += -I${src}/${NDPI_SRC}/include -I${src}/${NDPI_SRC}/lib -I${src}/../libre -I${src}/${NDPI_SRC}/lib/third_party/include 
+ccflags-y += -I${src}/${NDPI_SRC}/include -I${src}/${NDPI_SRC}/lib -I${src}/${LDPI_SRC} -I${src}/../libre -I${src}/${NDPI_SRC}/lib/third_party/include
 ccflags-y += -DHAVE_CONFIG_H -DNDPI_LIB_COMPILATION -DOPENDPI_NETFILTER_MODULE  -g
 
 
@@ -10,6 +13,7 @@ KERNEL_DIR := ${MODULES_DIR}/build
 
 obj-m := xt_ndpi.o
 xt_ndpi-y := main.o \
+		${LDPI_PRO_T}/lpi_steam.o \
 		${NDPI_SRC}/lib/third_party/src/node.o \
 		${NDPI_SRC}/lib/third_party/src/ahocorasick.o \
 		${NDPI_SRC}/lib/third_party/src/libcache.o \
@@ -96,8 +100,8 @@ xt_ndpi-y := main.o \
 		${NDPI_PRO}/openvpn.o \
 		${NDPI_PRO}/oracle.o \
 		${NDPI_PRO}/oscar.o \
-                ${NDPI_PRO}/pando.o \
-                ${NDPI_PRO}/megaco.o \
+        ${NDPI_PRO}/pando.o \
+        ${NDPI_PRO}/megaco.o \
 		${NDPI_PRO}/pcanywhere.o \
 		${NDPI_PRO}/postgres.o \
 		${NDPI_PRO}/pplive.o \

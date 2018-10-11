@@ -1,4 +1,4 @@
-The major differences
+cdThe major differences
 
 1. Using the tracking system connections (flows) conntrack/netfilter instead of a similar system in nDPI. The tracking system connections implemented in the conntrack/netfilter more accurate.  
 

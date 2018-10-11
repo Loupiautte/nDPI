@@ -43,6 +43,7 @@
 
 #include "ahocorasick.h"
 #include "ndpi_api.h"
+#include "lpi_api.h"
 
 #include "ndpi_network_list.c.inc"
 #include "ndpi_content_match.c.inc"
@@ -2721,7 +2722,7 @@ void ndpi_set_bitmask_protocol_detection(char * label,
     ndpi_struct->callback_buffer[idx].ndpi_selection_bitmask = ndpi_selection_bitmask;
 
     /*
-      Reset protocol detection bitmask via NDPI_PROTOCOL_UNKNOWN and than add specify protocol bitmast to callback
+      Reset protocol detection bitmask via NDPI_PROTOCOL_UNKNOWN and than add specify protocol bitmask to callback
       buffer.
     */
     if(b_save_bitmask_unknow) NDPI_SAVE_AS_BITMASK(ndpi_struct->callback_buffer[idx].detection_bitmask, NDPI_PROTOCOL_UNKNOWN);
@@ -2732,6 +2733,17 @@ void ndpi_set_bitmask_protocol_detection(char * label,
 }
 
 /* ******************************************************************** */
+
+void mpi_set_protocol_detection_bitmask2(int i){
+    printk(KERN_INFO "Begin function : ndpi_set_bitmask_protocol_detection");
+
+}
+
+/**
+ *
+ * @param ndpi_struct = empty
+ * @param dbm = empty
+ */
 
 void ndpi_set_protocol_detection_bitmask2(struct ndpi_detection_module_struct *ndpi_struct,
 					  const NDPI_PROTOCOL_BITMASK * dbm)
