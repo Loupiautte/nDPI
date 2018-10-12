@@ -155,6 +155,4 @@ bool match_qqlive_payload(uint32_t payload, uint32_t len);
 
 bool match_yy_payload(uint32_t payload, uint32_t len);
 
-void test(void);
-
 #endif

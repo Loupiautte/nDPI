@@ -13,6 +13,9 @@ KERNEL_DIR := ${MODULES_DIR}/build
 
 obj-m := xt_ndpi.o
 xt_ndpi-y := main.o \
+        ${LDPI_SRC}/libprotoident.o \
+        ${LDPI_SRC}/proto_manager.o \
+        ${LDPI_SRC}/proto_common.o \
 		${LDPI_PRO_T}/lpi_steam.o \
 		${NDPI_SRC}/lib/third_party/src/node.o \
 		${NDPI_SRC}/lib/third_party/src/ahocorasick.o \

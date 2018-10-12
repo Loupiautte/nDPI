@@ -25,7 +25,6 @@
  */
 
 #include <linux/string.h>
-//#include <linux/module.h>
 
 #ifdef __APPLE__
 #include <libkern/OSByteOrder.h>
@@ -39,12 +38,6 @@
 #include "libprotoident.h"
 #include "proto_common.h"
 
-void test(void){
-
-}
-
-EXPORT_SYMBOL(match_str_either);
-
 bool match_str_either(lpi_data_t *data, const char *string) {
 //
 //        if (MATCHSTR(data->payload[0], string))
@@ -53,6 +46,8 @@ bool match_str_either(lpi_data_t *data, const char *string) {
 //                return true;
         return false;
 }
+
+EXPORT_SYMBOL(match_str_either);
 
 //bool match_str_both(lpi_data_t *data, const char *string1,
 //        const char *string2) {

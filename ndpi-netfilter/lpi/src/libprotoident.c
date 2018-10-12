@@ -35,14 +35,14 @@
 //#include <stdlib.h>
 //#include <signal.h>
 //
-//#include "libprotoident.h"
-//#include "proto_manager.h"
+#include "libprotoident.h"
+#include "proto_manager.h"
 //#include <linux/list.h>
 
 
 bool init_called = false;
-//LPIModuleMap TCP_protocols;
-//LPIModuleMap UDP_protocols;
+LPIModuleMap TCP_protocols;
+LPIModuleMap UDP_protocols;
 
 //lpi_module_t *lpi_icmp = NULL;
 //lpi_module_t *lpi_unsupported = NULL;
@@ -52,15 +52,15 @@ bool init_called = false;
 //static LPINameMap lpi_names;
 
 static int seq_cmp(uint32_t seq_a, uint32_t seq_b) {
-
-    if (seq_a == seq_b) return 0;
-
-
-    if (seq_a > seq_b)
-        return (int) (seq_a - seq_b);
-    else
-        /* WRAPPING */
-        return (int) (UINT32_MAX - ((seq_b - seq_a) - 1));
+//
+//    if (seq_a == seq_b) return 0;
+//
+//
+//    if (seq_a > seq_b)
+//        return (int) (seq_a - seq_b);
+//    else
+//        /* WRAPPING */
+//        return (int) (UINT32_MAX - ((seq_b - seq_a) - 1));
 
 }
 
@@ -95,33 +95,33 @@ int lpi_init_library() {
 
 }
 
-void lpi_free_library() {
-
-    free_protocols(&TCP_protocols);
-    free_protocols(&UDP_protocols);
-
-    if (lpi_icmp != NULL) {
-        delete lpi_icmp;
-        lpi_icmp = NULL;
-    }
-
-    if (lpi_unsupported != NULL) {
-        delete lpi_unsupported;
-        lpi_unsupported = NULL;
-    }
-
-    if (lpi_unknown_tcp != NULL) {
-        delete lpi_unknown_tcp;
-        lpi_unknown_tcp = NULL;
-    }
-
-    if (lpi_unknown_udp != NULL) {
-        delete lpi_unknown_udp;
-        lpi_unknown_udp = NULL;
-    }
-
-    init_called = false;
-}
+//void lpi_free_library() {
+//
+//    free_protocols(&TCP_protocols);
+//    free_protocols(&UDP_protocols);
+//
+//    if (lpi_icmp != NULL) {
+//        delete lpi_icmp;
+//        lpi_icmp = NULL;
+//    }
+//
+//    if (lpi_unsupported != NULL) {
+//        delete lpi_unsupported;
+//        lpi_unsupported = NULL;
+//    }
+//
+//    if (lpi_unknown_tcp != NULL) {
+//        delete lpi_unknown_tcp;
+//        lpi_unknown_tcp = NULL;
+//    }
+//
+//    if (lpi_unknown_udp != NULL) {
+//        delete lpi_unknown_udp;
+//        lpi_unknown_udp = NULL;
+//    }
+//
+//    init_called = false;
+//}
 
 void lpi_init_data(lpi_data_t *data) {
 
@@ -143,156 +143,156 @@ void lpi_init_data(lpi_data_t *data) {
 
 }
 
-static int update_tcp_flow(lpi_data_t *data, libtrace_tcp_t *tcp, uint8_t dir,
-                           uint32_t rem, uint32_t psize) {
-    uint32_t seq = 0;
+//static int update_tcp_flow(lpi_data_t *data, libtrace_tcp_t *tcp, uint8_t dir,
+//                           uint32_t rem, uint32_t psize) {
+//    uint32_t seq = 0;
+//
+//    if (rem < sizeof(libtrace_tcp_t))
+//        return 0;
+//    if (tcp->rst)
+//        return 1;
+//
+//    if (data->server_port == 0) {
+//        data->server_port = ntohs(tcp->dest);
+//        data->client_port = ntohs(tcp->source);
+//    }
+//
+//    seq = ntohl(tcp->seq);
+//
+//    if (tcp->syn && data->payload_len[dir] == 0) {
+//        data->seqno[dir] = seq + 1;
+//        data->seen_syn[dir] = true;
+//    }
+//
+//    /* Ok, we've got some payload but we never saw the SYN for this
+//     * direction. What do we do?
+//     *
+//     * Current idea: just assume this is the first payload bearing
+//     * packet. Better than running around with an uninitialised seqno */
+//    if (data->seen_syn[dir] == false && psize > 0) {
+//        data->seqno[dir] = seq;
+//        data->seen_syn[dir] = true;
+//    }
+//
+//    if (seq_cmp(seq, data->seqno[dir]) != 0)
+//        return 0;
+//    //data->seqno[dir] = seq;
+//
+//    return 1;
+//}
 
-    if (rem < sizeof(libtrace_tcp_t))
-        return 0;
-    if (tcp->rst)
-        return 1;
+//static int update_udp_flow(lpi_data_t *data, libtrace_udp_t *udp,
+//                           uint32_t rem) {
+//
+//    if (rem < sizeof(libtrace_udp_t))
+//        return 0;
+//
+//    if (data->server_port == 0) {
+//        data->server_port = ntohs(udp->dest);
+//        data->client_port = ntohs(udp->source);
+//    }
+//
+//    return 1;
+//}
 
-    if (data->server_port == 0) {
-        data->server_port = ntohs(tcp->dest);
-        data->client_port = ntohs(tcp->source);
-    }
-
-    seq = ntohl(tcp->seq);
-
-    if (tcp->syn && data->payload_len[dir] == 0) {
-        data->seqno[dir] = seq + 1;
-        data->seen_syn[dir] = true;
-    }
-
-    /* Ok, we've got some payload but we never saw the SYN for this
-     * direction. What do we do?
-     *
-     * Current idea: just assume this is the first payload bearing
-     * packet. Better than running around with an uninitialised seqno */
-    if (data->seen_syn[dir] == false && psize > 0) {
-        data->seqno[dir] = seq;
-        data->seen_syn[dir] = true;
-    }
-
-    if (seq_cmp(seq, data->seqno[dir]) != 0)
-        return 0;
-    //data->seqno[dir] = seq;
-
-    return 1;
-}
-
-static int update_udp_flow(lpi_data_t *data, libtrace_udp_t *udp,
-                           uint32_t rem) {
-
-    if (rem < sizeof(libtrace_udp_t))
-        return 0;
-
-    if (data->server_port == 0) {
-        data->server_port = ntohs(udp->dest);
-        data->client_port = ntohs(udp->source);
-    }
-
-    return 1;
-}
-
-int lpi_update_data(libtrace_packet_t *packet, lpi_data_t *data, uint8_t dir) {
-
-    char *payload = NULL;
-    uint32_t psize = 0;
-    uint32_t rem = 0;
-    uint8_t proto = 0;
-    void *transport;
-    uint32_t four_bytes;
-    libtrace_ip_t *ip = NULL;
-
-    //tcp = trace_get_tcp(packet);
-    psize = trace_get_payload_length(packet);
-
-    /* Don't bother if we've observed 32k of data - the first packet must
-     * surely been within that. This helps us avoid issues with sequence
-     * number wrapping when doing the reordering check below */
-    if (data->observed[dir] > 32 * 1024)
-        return 0;
-
-    data->observed[dir] += psize;
-
-    /* If we're TCP, we have to wait to check that we haven't been
-     * reordered */
-    if (data->trans_proto != 6 && data->payload_len[dir] != 0)
-        return 0;
-
-    transport = trace_get_transport(packet, &proto, &rem);
-    if (data->trans_proto == 0)
-        data->trans_proto = proto;
-
-    if (transport == NULL || rem == 0)
-        return 0;
-
-    if (proto == 6) {
-        if (update_tcp_flow(data, (libtrace_tcp_t *) transport, dir, rem, psize) == 0)
-            return 0;
-        payload = (char *) trace_get_payload_from_tcp(
-                (libtrace_tcp_t *) transport, &rem);
-    }
-
-    if (proto == 17) {
-        if (update_udp_flow(data, (libtrace_udp_t *) transport, rem) == 0)
-            return 0;
-        payload = (char *) trace_get_payload_from_udp(
-                (libtrace_udp_t *) transport, &rem);
-    }
-
-    ip = trace_get_ip(packet);
-
-    if (payload == NULL)
-        return 0;
-    if (psize <= 0)
-        return 0;
-
-    four_bytes = (*(uint32_t *) payload);
-
-    if (psize < 4) {
-        four_bytes = (ntohl(four_bytes)) >> (8 * (4 - psize));
-        four_bytes = htonl(four_bytes << (8 * (4 - psize)));
-    }
-
-    data->payload[dir] = four_bytes;
-    data->payload_len[dir] = psize;
-
-    if (ip != NULL && data->ips[0] == 0) {
-        if (dir == 0) {
-            data->ips[0] = ip->ip_src.s_addr;
-            data->ips[1] = ip->ip_dst.s_addr;
-        } else {
-            data->ips[1] = ip->ip_src.s_addr;
-            data->ips[0] = ip->ip_dst.s_addr;
-        }
-    }
-
-    return 1;
-
-}
+//int lpi_update_data(libtrace_packet_t *packet, lpi_data_t *data, uint8_t dir) {
+//
+//    char *payload = NULL;
+//    uint32_t psize = 0;
+//    uint32_t rem = 0;
+//    uint8_t proto = 0;
+//    void *transport;
+//    uint32_t four_bytes;
+//    libtrace_ip_t *ip = NULL;
+//
+//    //tcp = trace_get_tcp(packet);
+//    psize = trace_get_payload_length(packet);
+//
+//    /* Don't bother if we've observed 32k of data - the first packet must
+//     * surely been within that. This helps us avoid issues with sequence
+//     * number wrapping when doing the reordering check below */
+//    if (data->observed[dir] > 32 * 1024)
+//        return 0;
+//
+//    data->observed[dir] += psize;
+//
+//    /* If we're TCP, we have to wait to check that we haven't been
+//     * reordered */
+//    if (data->trans_proto != 6 && data->payload_len[dir] != 0)
+//        return 0;
+//
+//    transport = trace_get_transport(packet, &proto, &rem);
+//    if (data->trans_proto == 0)
+//        data->trans_proto = proto;
+//
+//    if (transport == NULL || rem == 0)
+//        return 0;
+//
+//    if (proto == 6) {
+//        if (update_tcp_flow(data, (libtrace_tcp_t *) transport, dir, rem, psize) == 0)
+//            return 0;
+//        payload = (char *) trace_get_payload_from_tcp(
+//                (libtrace_tcp_t *) transport, &rem);
+//    }
+//
+//    if (proto == 17) {
+//        if (update_udp_flow(data, (libtrace_udp_t *) transport, rem) == 0)
+//            return 0;
+//        payload = (char *) trace_get_payload_from_udp(
+//                (libtrace_udp_t *) transport, &rem);
+//    }
+//
+//    ip = trace_get_ip(packet);
+//
+//    if (payload == NULL)
+//        return 0;
+//    if (psize <= 0)
+//        return 0;
+//
+//    four_bytes = (*(uint32_t *) payload);
+//
+//    if (psize < 4) {
+//        four_bytes = (ntohl(four_bytes)) >> (8 * (4 - psize));
+//        four_bytes = htonl(four_bytes << (8 * (4 - psize)));
+//    }
+//
+//    data->payload[dir] = four_bytes;
+//    data->payload_len[dir] = psize;
+//
+//    if (ip != NULL && data->ips[0] == 0) {
+//        if (dir == 0) {
+//            data->ips[0] = ip->ip_src.s_addr;
+//            data->ips[1] = ip->ip_dst.s_addr;
+//        } else {
+//            data->ips[1] = ip->ip_src.s_addr;
+//            data->ips[0] = ip->ip_dst.s_addr;
+//        }
+//    }
+//
+//    return 1;
+//
+//}
 
 static lpi_module_t *test_protocol_list(LPIModuleList *ml, lpi_data_t *data) {
-    printk(KERN_DEBUG
-    "Begin function : lpi_module_t");
-
-    LPIModuleList l_it;
-
-    list_for_each_entry(l_it, ml->list, list)
-    {
-        //access the member from l_it
-        lpi_module_t *module = &(l_it.lpi_module1);
-        if (module->lpi_callback(data, module)) {
-            printk(KERN_DEBUG
-            "End function : lpi_module_t");
-            return module;
-        }
-    }
-
-    printk(KERN_DEBUG
-    "End function : lpi_module_t");
-    return NULL;
+//    printk(KERN_DEBUG
+//    "Begin function : lpi_module_t");
+//
+//    LPIModuleList l_it;
+//
+//    list_for_each_entry(l_it, ml->list, list)
+//    {
+//        //access the member from l_it
+//        lpi_module_t *module = &(l_it.lpi_module1);
+//        if (module->lpi_callback(data, module)) {
+//            printk(KERN_DEBUG
+//            "End function : lpi_module_t");
+//            return module;
+//        }
+//    }
+//
+//    printk(KERN_DEBUG
+//    "End function : lpi_module_t");
+//    return NULL;
 
     //TODO Check
     //	LPIModuleList::iterator l_it;
@@ -319,24 +319,24 @@ static lpi_module_t *test_protocol_list(LPIModuleList *ml, lpi_data_t *data) {
 }
 
 static lpi_module_t *guess_protocol(LPIModuleMap *modmap, lpi_data_t *data) {
-    printk(KERN_DEBUG
-    "Beging function : guess protocol");
-    lpi_module_t *proto = NULL;
-
-    LPIModuleMap m_it;
-
-    list_for_each_entry(m_it, ml->list, list)
-    {
-        LPIModuleList *ml = m_it->lpiModuleList;
-
-        proto = test_protocol_list(ml, data);
-
-        if (proto != NULL)
-            break;
-    }
-    printk(KERN_DEBUG
-    "End function : guess_protocol");
-    return proto;
+//    printk(KERN_DEBUG
+//    "Beging function : guess protocol");
+//    lpi_module_t *proto = NULL;
+//
+//    LPIModuleMap m_it;
+//
+//    list_for_each_entry(m_it, ml->list, list)
+//    {
+//        LPIModuleList *ml = m_it->lpiModuleList;
+//
+//        proto = test_protocol_list(ml, data);
+//
+//        if (proto != NULL)
+//            break;
+//    }
+//    printk(KERN_DEBUG
+//    "End function : guess_protocol");
+//    return proto;
     //TODO Check
 //    lpi_module_t *proto = NULL;
 //
@@ -360,39 +360,39 @@ static lpi_module_t *guess_protocol(LPIModuleMap *modmap, lpi_data_t *data) {
 }
 
 lpi_module_t *lpi_guess_protocol(lpi_data_t *data) {
-    printk(KERN_DEBUG
-    "Begin function : lpi_guess_protocol");
-    lpi_module_t *p = NULL;
-
-    if (!init_called) {
-        printk(KERN_WARNING "lpi_init_library was never called - cannot guess the protocol\n");
-        return NULL;
-    }
-
-    switch (data->trans_proto) {
-        case TRACE_IPPROTO_ICMP
-            printk(KERN_DEBUG
-            "End function : lpi_guess_protocol");
-            return lpi_icmp;
-        case TRACE_IPPROTO_TCP:
-            p = guess_protocol(&TCP_protocols, data);
-            if (p == NULL)
-                p = lpi_unknown_tcp;
-            printk(KERN_DEBUG
-            "End function : lpi_guess_protocol");
-            return p;
-        case TRACE_IPPROTO_UDP:
-            p = guess_protocol(&UDP_protocols, data);
-            if (p == NULL)
-                p = lpi_unknown_udp;
-            printk(KERN_DEBUG
-            "End function : lpi_guess_protocol");
-            return p;
-        default:
-            printk(KERN_DEBUG
-            "End function : lpi_guess_protocol");
-            return lpi_unsupported;
-    }
+//    printk(KERN_DEBUG
+//    "Begin function : lpi_guess_protocol");
+//    lpi_module_t *p = NULL;
+//
+//    if (!init_called) {
+//        printk(KERN_WARNING "lpi_init_library was never called - cannot guess the protocol\n");
+//        return NULL;
+//    }
+//
+//    switch (data->trans_proto) {
+//        case TRACE_IPPROTO_ICMP
+//            printk(KERN_DEBUG
+//            "End function : lpi_guess_protocol");
+//            return lpi_icmp;
+//        case TRACE_IPPROTO_TCP:
+//            p = guess_protocol(&TCP_protocols, data);
+//            if (p == NULL)
+//                p = lpi_unknown_tcp;
+//            printk(KERN_DEBUG
+//            "End function : lpi_guess_protocol");
+//            return p;
+//        case TRACE_IPPROTO_UDP:
+//            p = guess_protocol(&UDP_protocols, data);
+//            if (p == NULL)
+//                p = lpi_unknown_udp;
+//            printk(KERN_DEBUG
+//            "End function : lpi_guess_protocol");
+//            return p;
+//        default:
+//            printk(KERN_DEBUG
+//            "End function : lpi_guess_protocol");
+//            return lpi_unsupported;
+//    }
 
     //TODO Check
 
@@ -535,29 +535,29 @@ const char *lpi_print_category(lpi_category_t category) {
 
 const char *lpi_print(lpi_protocol_t proto) {
 
-
-
-
-    LPINameMap::iterator it;
-
-    it = lpi_names.find(proto);
-
-    if (it == lpi_names.end()) {
-        return "NULL";
-    }
-    return (it->second);
+//
+//
+//
+//    LPINameMap::iterator it;
+//
+//    it = lpi_names.find(proto);
+//
+//    if (it == lpi_names.end()) {
+//        return "NULL";
+//    }
+//    return (it->second);
 
 }
 
 bool lpi_is_protocol_inactive(lpi_protocol_t proto) {
 
-    LPINameMap::iterator it;
-
-    it = lpi_names.find(proto);
-
-    if (it == lpi_names.end()) {
-        return true;
-    }
+//    LPINameMap::iterator it;
+//
+//    it = lpi_names.find(proto);
+//
+//    if (it == lpi_names.end()) {
+//        return true;
+//    }
     return false;
 
 }

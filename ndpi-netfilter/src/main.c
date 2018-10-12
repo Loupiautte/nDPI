@@ -1037,7 +1037,7 @@ ndpi_process_packet(struct ndpi_net *n, struct nf_conn * ct, struct nf_ct_ext_nd
 #endif
 					(uint8_t *) iph, 
 					 skb->len, time, src, dst);
-
+	printk(KERN_NOTICE "NDPI protocol : %d, %d\n", proto.master_protocol, proto.app_protocol);
 	if(proto.master_protocol == NDPI_PROTOCOL_UNKNOWN && 
 	          proto.app_protocol == NDPI_PROTOCOL_UNKNOWN ) {
 #ifdef NDPI_DETECTION_SUPPORT_IPV6

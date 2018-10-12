@@ -52,7 +52,9 @@
 extern "C" {
 #endif
 
-/* Protocol categories - most l7 protocols fall into a broader category that
+#include <linux/kernel.h>
+
+    /* Protocol categories - most l7 protocols fall into a broader category that
  * describes what they are used for, e.g. P2P, Web, Mail etc.
  */
 typedef enum {
@@ -740,7 +742,7 @@ lpi_module_t *lpi_guess_protocol(lpi_data_t *data);
  *  protocol values (see lpi_live for an example), as ideally you would want
  *  to avoid reporting anything for the NULL protocols.
  */
-bool lpi_is_protocol_inactive(lpi_protocol_t proto);
+//bool lpi_is_protocol_inactive(lpi_protocol_t proto);
 #ifdef __cplusplus 
 }
 #endif
