@@ -24,14 +24,55 @@
  *
  */
 
+#include <linux/slab.h>
+#include <linux/list.h>
 #include "proto_manager.h"
 #include "tcp/tcp_protocols.h"
 #include "udp/udp_protocols.h"
 
 
 void register_protocol(lpi_module_t *mod, LPIModuleMap *mod_map) {
+    bool find_priority = false;
+    LPIModuleMap *node;
 
+    uint8_t mod_priority = mod->priority;
 
+    list_for_each_entry(node, &mod_map->list, list){
+        if(mod_priority == node->priority){
+            find_priority = true;
+            LPIModuleList *lpiModuleList = node->lpiModuleList;
+
+            LPIModuleList *newModuleList;
+            newModuleList = kmalloc(sizeof(*newModuleList), GFP_KERNEL);
+            newModuleList->lpi_module1 = *mod;
+            INIT_LIST_HEAD(&newModuleList->list);
+
+            list_add(&newModuleList->list, &lpiModuleList->list);
+        }
+    }
+
+    if (!find_priority) {
+        LPIModuleList *newModuleList;
+        newModuleList = kmalloc(sizeof(*newModuleList), GFP_KERNEL);
+        newModuleList->lpi_module1 = *mod;
+        INIT_LIST_HEAD(&newModuleList->list);
+
+        LPIModuleMap *lpiModuleMap;
+        lpiModuleMap = (LPIModuleMap *) kmalloc(sizeof(*lpiModuleMap), GFP_KERNEL);
+        INIT_LIST_HEAD(&lpiModuleMap->list);
+        lpiModuleMap->priority = mod_priority;
+        lpiModuleMap->lpiModuleList = newModuleList;
+
+        list_add(&(lpiModuleMap->list), &(mod_map->list));
+    }
+
+    //Print all module name
+    printk(KERN_NOTICE
+    "LPI : Print all protocols :");
+    list_for_each_entry(node, &mod_map->list, list){
+        printk(KERN_NOTICE
+        "   %s", node->lpiModuleList->lpi_module1.name);
+    }
 
 //	LPIModuleMap::iterator it;
 //	LPIModuleList *ml;
@@ -51,6 +92,18 @@ void register_protocol(lpi_module_t *mod, LPIModuleMap *mod_map) {
 }
 
 void free_protocols(LPIModuleMap *mod_map) {
+    LPIModuleMap *node, *tmp_node;
+
+    printk(KERN_NOTICE
+    "LPI : Free all protocols");
+
+    list_for_each_entry_safe(node, tmp_node, &mod_map->list, list){
+        printk(KERN_NOTICE
+        "   %s", node->lpiModuleList->lpi_module1.name);
+        kfree(node->lpiModuleList);
+        list_del(&node->list);
+        kfree(node);
+    }
 
 //	LPIModuleMap::iterator it;
 //	LPIModuleList *ml;
@@ -69,7 +122,7 @@ int register_tcp_protocols(LPIModuleMap *mod_map) {
     register_steam(mod_map);
 
 //	register_360safeguard(mod_map);
-//	register_4d(mod_map);
+	register_4d(mod_map);
 //	register_acestream(mod_map);
 //	register_afp(mod_map);
 //	register_airdroid(mod_map);
@@ -320,7 +373,7 @@ int register_tcp_protocols(LPIModuleMap *mod_map) {
 //	register_zero_facebook(mod_map);
 //	register_zoom_tcp(mod_map);
 //	register_zynga(mod_map);
-	return 0;
+    return 0;
 }
 
 int register_udp_protocols(LPIModuleMap *mod_map) {
@@ -546,7 +599,7 @@ int register_udp_protocols(LPIModuleMap *mod_map) {
 //	register_yy_udp(mod_map);
 //	register_zeroaccess_udp(mod_map);
 //	register_zoom(mod_map);
-	return 0;
+    return 0;
 }
 
 static void register_list_names(LPIModuleList *ml, LPINameMap *names) {

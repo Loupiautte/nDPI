@@ -66,14 +66,15 @@ static int seq_cmp(uint32_t seq_a, uint32_t seq_b) {
 
 
 int lpi_init_library() {
+    if (init_called) {
+        printk(KERN_WARNING "WARNING: lpi_init_library has already been called\n");
+        return 0;
+    }
 
-//    if (init_called) {
-//        fprintf(stderr, "WARNING: lpi_init_library has already been called\n");
-//        return 0;
-//    }
-//
-//    if (register_tcp_protocols(&TCP_protocols) == -1)
-//        return -1;
+    INIT_LIST_HEAD(&TCP_protocols.list);
+    INIT_LIST_HEAD(&UDP_protocols.list);
+    if (register_tcp_protocols(&TCP_protocols) == -1)
+        return -1;
 //
 //    if (register_udp_protocols(&UDP_protocols) == -1)
 //        return -1;
@@ -95,11 +96,11 @@ int lpi_init_library() {
 
 }
 
-//void lpi_free_library() {
-//
-//    free_protocols(&TCP_protocols);
-//    free_protocols(&UDP_protocols);
-//
+void lpi_free_library() {
+
+    free_protocols(&TCP_protocols);
+    free_protocols(&UDP_protocols);
+
 //    if (lpi_icmp != NULL) {
 //        delete lpi_icmp;
 //        lpi_icmp = NULL;
@@ -120,8 +121,8 @@ int lpi_init_library() {
 //        lpi_unknown_udp = NULL;
 //    }
 //
-//    init_called = false;
-//}
+    init_called = false;
+}
 
 void lpi_init_data(lpi_data_t *data) {
 

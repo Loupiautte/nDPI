@@ -44,7 +44,7 @@ typedef struct lpimodulelist
 
 typedef struct lpimodulemap
 {
-    uint8_t id;
+    uint8_t priority;
     LPIModuleList *lpiModuleList;
     struct list_head list;
 } LPIModuleMap;

@@ -52,6 +52,7 @@
 
 #include "../lib/third_party/include/ndpi_patricia.h"
 #include "../lib/third_party/include/ahocorasick.h"
+#include "libprotoident.h"
 
 extern ndpi_protocol_match host_match[];
 /* Only for debug! */
@@ -3664,6 +3665,8 @@ static int __init ndpi_mt_init(void)
 	nf_ct_ext_id_ndpi = NF_CT_EXT_LABELS;
 #endif
 
+    lpi_init_library();
+
 	ret = register_pernet_subsys(&ndpi_net_ops);
 	if (ret < 0) {
 		pr_err("xt_ndpi: can't register_pernet_subsys.\n");
@@ -3780,6 +3783,7 @@ unreg_ext:
 
 static void __exit ndpi_mt_exit(void)
 {
+//    lpi_free_library();
 	pr_info("xt_ndpi 1.2 unload.\n");
 
         kmem_cache_destroy (bt_port_cache);
@@ -3788,6 +3792,8 @@ static void __exit ndpi_mt_exit(void)
 	xt_unregister_target(&ndpi_tg_reg);
 	xt_unregister_match(&ndpi_mt_reg);
 	unregister_pernet_subsys(&ndpi_net_ops);
+
+
 #ifdef NF_CT_CUSTOM
 	nf_ct_extend_unregister(&ndpi_extend);
 #else

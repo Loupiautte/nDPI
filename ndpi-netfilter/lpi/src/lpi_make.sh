@@ -1,4 +1,4 @@
-folders="tcp"
+folders="tcp udp"
 for folder in $folders; do
 	cd $folder
 	name_upper=$(echo $folder | awk '{print toupper($0)}')
@@ -17,14 +17,6 @@ for folder in $folders; do
 		protocols=("${protocols[@]}" $protocol)
 		mv "$f" "${f%.cc}.c"
 	done
-
-	#Modification de tout les fichiers du dossier
-	sed -i "s/#include <stdlib.h>//g" ./lpi_*
-	sed -i "s/#include <string.h>/#include <linux\/kernel.h>/g" ./lpi_*
-	sed -i "s/#include <stdio.h>//g" ./lpi_*
-	sed -i "s/strtoul/kstrtoul/g" lpi_*
-	sed -i "s/ and / \&\& /g" ./lpi_*
-	sed -i "/register_protocol(.*/s/);/, $name_upper);/" ./lpi_*
 
 	#Modification des fichiers principaux pour TCP ou UDP
 	cd ..
