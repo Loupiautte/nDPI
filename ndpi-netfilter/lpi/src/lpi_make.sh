@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 folders="tcp udp"
 for folder in $folders; do
 	cd $folder
@@ -10,12 +11,20 @@ for folder in $folders; do
 	#Changement de l'extension (.cc => .c)
 	for f in lpi_*.cc; do
 		p=$(echo $f | cut -f 1 -d '.')
-		pattern="static lpi_module_t $p"
 		name=${p:4}
 		priority=$(grep -Pazoe "static lpi_module_t [a-zA-Z0-9_]* = {\s*.*\s*.*\s*.*\s*\K[0-9]*" $f)
 		protocol=${priority}.${name}
 		protocols=("${protocols[@]}" $protocol)
-		mv "$f" "${f%.cc}.c"
+	done
+
+    #Tri des protocoles par rapport à la priorité
+	protocols_sorted=( $(for el in "${protocols[@]}"; do echo "$el";done | sort -n) )
+	register_protocol=""
+	for proto in "${protocols_sorted[@]}"; do
+		p=$(echo $proto | cut -f 2 -d '.')
+		p="lpi_$p.c"
+		name=$(grep -Po "void \Kregister_[^\(]*" $p)
+		register_protocol="$register_protocol $name(mod_array);\n"
 	done
 
 	#Modification des fichiers principaux pour TCP ou UDP

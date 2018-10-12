@@ -37,7 +37,8 @@
 //
 #include "libprotoident.h"
 #include "proto_manager.h"
-//#include <linux/list.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
 
 
 bool init_called = false;
@@ -67,14 +68,27 @@ static int seq_cmp(uint32_t seq_a, uint32_t seq_b) {
 
 int lpi_init_library() {
     if (init_called) {
-        printk(KERN_WARNING "WARNING: lpi_init_library has already been called\n");
+        printk(KERN_WARNING
+        "WARNING: lpi_init_library has already been called\n");
         return 0;
     }
 
     INIT_LIST_HEAD(&TCP_protocols.list);
     INIT_LIST_HEAD(&UDP_protocols.list);
-    if (register_tcp_protocols(&TCP_protocols) == -1)
+    if (register_tcp_protocols(&TCP_protocols) == -1) {
         return -1;
+    }
+
+
+    //Print all module name
+    printk(KERN_NOTICE "LPI : Print all TCP protocols :");
+    LPIModuleMap *node;
+    int i = 0;
+    list_for_each_entry(node, &TCP_protocols.list, list){
+        printk(KERN_ERR"   %s", node->lpiModuleList->lpi_module1.name);
+        i++;
+    }
+    printk(KERN_ERR "Nombre de protocoles : %d", i);
 //
 //    if (register_udp_protocols(&UDP_protocols) == -1)
 //        return -1;
