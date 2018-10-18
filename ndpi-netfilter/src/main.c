@@ -3783,7 +3783,7 @@ unreg_ext:
 
 static void __exit ndpi_mt_exit(void)
 {
-//    lpi_free_library();
+    lpi_free_library();
 	pr_info("xt_ndpi 1.2 unload.\n");
 
         kmem_cache_destroy (bt_port_cache);

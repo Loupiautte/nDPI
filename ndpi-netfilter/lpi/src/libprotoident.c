@@ -79,20 +79,23 @@ int lpi_init_library() {
         return -1;
     }
 
-
-    //Print all module name
-    printk(KERN_NOTICE "LPI : Print all TCP protocols :");
-    LPIModuleMap *node;
-    int i = 0;
-    list_for_each_entry(node, &TCP_protocols.list, list){
-        printk(KERN_ERR"   %s", node->lpiModuleList->lpi_module1.name);
-        i++;
+    if (register_udp_protocols(&UDP_protocols) == -1) {
+        return -1;
     }
-    printk(KERN_ERR "Nombre de protocoles : %d", i);
+
+
+
+//    //Print all module name
+//    printk(KERN_NOTICE "LPI : Print all TCP protocols :");
+//    LPIModuleMap *node;
+//    int i = 0;
+//    list_for_each_entry(node, &TCP_protocols.list, list){
+//        printk(KERN_ERR"   %s", node->lpiModuleList->lpi_module1.name);
+//        i++;
+//    }
+//    printk(KERN_ERR "Nombre de protocoles : %d", i);
 //
-//    if (register_udp_protocols(&UDP_protocols) == -1)
-//        return -1;
-//
+
 //    init_other_protocols(&lpi_names);
 //
 //    register_names(&TCP_protocols, &lpi_names);
@@ -105,13 +108,14 @@ int lpi_init_library() {
 //        return -1;
 //    }
 
-
     return 0;
 
 }
 
 void lpi_free_library() {
 
+    printk(KERN_NOTICE
+    "LPI : Free all protocols");
     free_protocols(&TCP_protocols);
     free_protocols(&UDP_protocols);
 

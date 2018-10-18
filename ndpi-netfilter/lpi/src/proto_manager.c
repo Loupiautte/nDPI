@@ -32,13 +32,12 @@
 
 
 void register_protocol(lpi_module_t *mod, LPIModuleMap *mod_map) {
-    bool find_priority = false;
     LPIModuleMap *node;
+    bool find_priority = false;
 
-    uint8_t mod_priority = mod->priority;
-
-    list_for_each_entry(node, &mod_map->list, list){
-        if(mod_priority == node->priority){
+    list_for_each_entry(node, &mod_map->list, list)
+    {
+        if (mod->priority == node->priority) {
             find_priority = true;
             LPIModuleList *lpiModuleList = node->lpiModuleList;
 
@@ -52,20 +51,26 @@ void register_protocol(lpi_module_t *mod, LPIModuleMap *mod_map) {
     }
 
     if (!find_priority) {
+        //Need to add an empty head to the list
+        LPIModuleList *moduleList_head;
+        moduleList_head = kmalloc(sizeof(*moduleList_head), GFP_KERNEL);
+        INIT_LIST_HEAD(&moduleList_head->list);
+
         LPIModuleList *newModuleList;
         newModuleList = kmalloc(sizeof(*newModuleList), GFP_KERNEL);
         newModuleList->lpi_module1 = *mod;
         INIT_LIST_HEAD(&newModuleList->list);
 
+        list_add(&(newModuleList->list), &(moduleList_head->list));
+
         LPIModuleMap *lpiModuleMap;
         lpiModuleMap = (LPIModuleMap *) kmalloc(sizeof(*lpiModuleMap), GFP_KERNEL);
         INIT_LIST_HEAD(&lpiModuleMap->list);
-        lpiModuleMap->priority = mod_priority;
-        lpiModuleMap->lpiModuleList = newModuleList;
+        lpiModuleMap->priority = mod->priority;
+        lpiModuleMap->lpiModuleList = moduleList_head;
 
         list_add(&(lpiModuleMap->list), &(mod_map->list));
     }
-
 
 //	LPIModuleMap::iterator it;
 //	LPIModuleList *ml;
@@ -87,12 +92,14 @@ void register_protocol(lpi_module_t *mod, LPIModuleMap *mod_map) {
 void free_protocols(LPIModuleMap *mod_map) {
     LPIModuleMap *node, *tmp_node;
 
-    printk(KERN_NOTICE
-    "LPI : Free all protocols");
-
-    list_for_each_entry_safe(node, tmp_node, &mod_map->list, list){
-        printk(KERN_NOTICE
-        "   %s", node->lpiModuleList->lpi_module1.name);
+    list_for_each_entry_safe(node, tmp_node, &mod_map->list, list)
+    {
+        LPIModuleList *node_list, *tmp_node_list;
+        list_for_each_entry_safe(node_list, tmp_node_list, &node->lpiModuleList->list, list)
+        {
+            list_del(&node_list->list);
+            kfree(node_list);
+        }
         kfree(node->lpiModuleList);
         list_del(&node->list);
         kfree(node);
