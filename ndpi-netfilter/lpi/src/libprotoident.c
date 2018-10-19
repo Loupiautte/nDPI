@@ -84,29 +84,18 @@ int lpi_init_library() {
     }
 
 
-
-//    //Print all module name
-//    printk(KERN_NOTICE "LPI : Print all TCP protocols :");
-//    LPIModuleMap *node;
-//    int i = 0;
-//    list_for_each_entry(node, &TCP_protocols.list, list){
-//        printk(KERN_ERR"   %s", node->lpiModuleList->lpi_module1.name);
-//        i++;
-//    }
-//    printk(KERN_ERR "Nombre de protocoles : %d", i);
-//
-
 //    init_other_protocols(&lpi_names);
 //
 //    register_names(&TCP_protocols, &lpi_names);
 //    register_names(&UDP_protocols, &lpi_names);
 //
-//    init_called = true;
-//
-//    if (TCP_protocols.empty() && UDP_protocols.empty()) {
-//        fprintf(stderr, "WARNING: No protocol modules loaded\n");
-//        return -1;
-//    }
+    init_called = true;
+
+    if (list_empty(&TCP_protocols.list) && list_empty(&UDP_protocols.list)) {
+        printk(KERN_WARNING
+        "LPI : WARNING: No protocol modules loaded");
+        return -1;
+    }
 
     return 0;
 
@@ -140,6 +129,14 @@ void lpi_free_library() {
 //    }
 //
     init_called = false;
+}
+
+void lpi_process_packet() {
+    lpi_data_t data;
+
+    lpi_init_data(&data);
+
+
 }
 
 void lpi_init_data(lpi_data_t *data) {
@@ -214,16 +211,16 @@ void lpi_init_data(lpi_data_t *data) {
 //    return 1;
 //}
 
-//int lpi_update_data(libtrace_packet_t *packet, lpi_data_t *data, uint8_t dir) {
-//
-//    char *payload = NULL;
-//    uint32_t psize = 0;
-//    uint32_t rem = 0;
-//    uint8_t proto = 0;
-//    void *transport;
-//    uint32_t four_bytes;
-//    libtrace_ip_t *ip = NULL;
-//
+int lpi_update_data(void *packet, lpi_data_t *data, uint8_t dir) {
+
+    char *payload = NULL;
+    uint32_t psize = 0;
+    uint32_t rem = 0;
+    uint8_t proto = 0;
+    void *transport;
+    uint32_t four_bytes;
+    libtrace_ip_t *ip = NULL;
+
 //    //tcp = trace_get_tcp(packet);
 //    psize = trace_get_payload_length(packet);
 //
@@ -280,17 +277,17 @@ void lpi_init_data(lpi_data_t *data) {
 //
 //    if (ip != NULL && data->ips[0] == 0) {
 //        if (dir == 0) {
-//            data->ips[0] = ip->ip_src.s_addr;
-//            data->ips[1] = ip->ip_dst.s_addr;
+//            data->ips[0] = ip->ip_src_s_addr;
+//            data->ips[1] = ip->ip_dst_s_addr;
 //        } else {
-//            data->ips[1] = ip->ip_src.s_addr;
-//            data->ips[0] = ip->ip_dst.s_addr;
+//            data->ips[1] = ip->ip_src_s_addr;
+//            data->ips[0] = ip->ip_dst_s_addr;
 //        }
 //    }
 //
 //    return 1;
 //
-//}
+}
 
 static lpi_module_t *test_protocol_list(LPIModuleList *ml, lpi_data_t *data) {
 //    printk(KERN_DEBUG
@@ -554,9 +551,7 @@ const char *lpi_print_category(lpi_category_t category) {
 
 const char *lpi_print(lpi_protocol_t proto) {
 
-//
-//
-//
+
 //    LPINameMap::iterator it;
 //
 //    it = lpi_names.find(proto);
