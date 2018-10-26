@@ -30,7 +30,7 @@
 
 #if __GNUC__ >= 3
 #ifndef PRINTF
-#  define DEPRECATED __attribute__((deprecated))
+//#  define DEPRECATED __attribute__((deprecated))
 #  define SIMPLE_FUNCTION __attribute__((pure))
 #  define UNUSED __attribute__((unused))
 #  define PACKED __attribute__((packed))
@@ -53,6 +53,9 @@ extern "C" {
 #endif
 
 #include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/proc_fs.h>
+
 
 /* Protocol categories - most l7 protocols fall into a broader category that
 * describes what they are used for, e.g. P2P, Web, Mail etc.
@@ -749,6 +752,33 @@ lpi_module_t *lpi_guess_protocol(lpi_data_t *data);
  *  to avoid reporting anything for the NULL protocols.
  */
 //bool lpi_is_protocol_inactive(lpi_protocol_t proto);
+
+//TODO Explanation
+/**
+ *
+ * @param file
+ * @param __user
+ * @return
+ */
+ssize_t lpi_proc_write(struct file *file, const char __user *ubuf, size_t count, loff_t *ppos);
+
+/**
+ *
+ * @param file
+ * @param __user
+ * @return
+ */
+ssize_t lpi_proc_read(struct file *file, char __user *ubuf, size_t count, loff_t *ppos);
+
+/**
+ *
+ * @param net
+ * @return
+ */
+int lpi_create_files(struct net *net);
+
+void lpi_delete_files(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -3331,7 +3331,7 @@ static u_int8_t ndpi_iph_is_valid_and_not_fragmented(const struct ndpi_iphdr *ip
   return 1;
 }
 
-static u_int8_t ndpi_detection_get_l4_internal(struct ndpi_detection_module_struct *ndpi_struct,
+    static u_int8_t ndpi_detection_get_l4_internal(struct ndpi_detection_module_struct *ndpi_struct,
 					       const u_int8_t * l3, u_int16_t l3_len,
 					       const u_int8_t ** l4_return, u_int16_t * l4_len_return,
 					       u_int8_t * l4_protocol_return, u_int32_t flags)

@@ -413,7 +413,6 @@ static inline bool match_tls_handshake(uint32_t payload, uint32_t len) {
  * XXX This isn't always true - consecutive packets may be merged it seems :(
  */
 static inline bool match_ssl2_handshake(uint32_t payload, uint32_t len) {
-        uint32_t stated_len = 0;
 
         if (MATCH(payload, 0x80, ANY, 0x01, 0x03))
                 return true;
@@ -790,7 +789,7 @@ bool match_tpkt(uint32_t payload, uint32_t len) {
 
 bool match_qqlive_payload(uint32_t payload, uint32_t len) {
 
-        uint8_t *ptr;
+//        uint8_t *ptr;
         uint32_t swap;
 
         /* This appears to have a 3 byte header. First byte is always 0xfe.
@@ -826,6 +825,7 @@ bool match_yy_payload(uint32_t payload, uint32_t len) {
         if (!MATCH(payload, ANY, ANY, 0x00, 0x00))
                 return false;
 
+        return true;
 //#if BYTE_ORDER == BIG_ENDIAN
 //        if (bswap32(payload) == len)
 //                return true;

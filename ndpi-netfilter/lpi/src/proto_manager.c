@@ -35,6 +35,8 @@ void register_protocol(lpi_module_t *mod, LPIModuleMap *mod_map) {
     LPIModuleMap *node;
     bool find_priority = false;
 
+
+    //TODO Optimize code
     list_for_each_entry(node, &mod_map->list, list)
     {
         if (mod->priority == node->priority) {

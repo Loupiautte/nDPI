@@ -75,7 +75,9 @@ extern ndpi_protocol_match host_match[];
 #define IPPROTO_OSPF    89
 #endif
 
+
 static char dir_name[]="xt_ndpi";
+
 static char info_name[]="info";
 static char ipdef_name[]="ip_proto";
 static char hostdef_name[]="host_proto";
@@ -2643,7 +2645,6 @@ static ssize_t n_ipdef_proc_read(struct file *file, char __user *buf,
 	return p;
 }
 
-
 /********************* ndpi proto *********************************/
 
 static int parse_ndpi_proto(struct ndpi_net *n,char *cmd) {
@@ -2839,10 +2840,9 @@ static int parse_ndpi_proto(struct ndpi_net *n,char *cmd) {
 	return *v ? 0:1;
 }
 
-static ssize_t nproto_proc_read(struct file *file, char __user *buf,
-                              size_t count, loff_t *ppos)
+static ssize_t nproto_proc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-        struct ndpi_net *n = PDE_DATA(file_inode(file));
+    struct ndpi_net *n = PDE_DATA(file_inode(file));
 	char lbuf[128];
 	char c_buf[12];
 	int i,l,p;
@@ -3331,7 +3331,7 @@ static void __net_exit ndpi_net_exit(struct net *net)
 	ndpi_exit_detection_module(n->ndpi_struct);
 
 	if(n->pde) {
-		if(n->pe_ipdef)
+	    if(n->pe_ipdef)
 			remove_proc_entry(ipdef_name, n->pde);
 		if(n->pe_hostdef)
 			remove_proc_entry(hostdef_name, n->pde);
@@ -3414,7 +3414,8 @@ static int __net_init ndpi_net_init(struct net *net)
 	n->n_hash = -1;
 
 	/* Create proc files */
-	
+
+
 	n->pde = proc_mkdir(dir_name, net->proc_net);
 	if(!n->pde) {
 		ndpi_exit_detection_module(n->ndpi_struct);

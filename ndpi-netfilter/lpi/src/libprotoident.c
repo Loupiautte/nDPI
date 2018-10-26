@@ -37,11 +37,10 @@
 //
 #include "libprotoident.h"
 #include "proto_manager.h"
-#include <linux/kernel.h>
-#include <linux/list.h>
+#include <net/net_namespace.h>
 
-
-bool init_called = false;
+static struct proc_dir_entry *ent;
+static bool init_called = false;
 LPIModuleMap TCP_protocols;
 LPIModuleMap UDP_protocols;
 
@@ -65,8 +64,8 @@ static int seq_cmp(uint32_t seq_a, uint32_t seq_b) {
 
 }
 
-
 int lpi_init_library() {
+
     if (init_called) {
         printk(KERN_WARNING
         "WARNING: lpi_init_library has already been called\n");
@@ -82,6 +81,10 @@ int lpi_init_library() {
     if (register_udp_protocols(&UDP_protocols) == -1) {
         return -1;
     }
+
+    /* Create proc files */
+
+
 
 
 //    init_other_protocols(&lpi_names);
@@ -107,6 +110,8 @@ void lpi_free_library() {
     "LPI : Free all protocols");
     free_protocols(&TCP_protocols);
     free_protocols(&UDP_protocols);
+    lpi_delete_files();
+
 
 //    if (lpi_icmp != NULL) {
 //        delete lpi_icmp;
@@ -576,3 +581,39 @@ bool lpi_is_protocol_inactive(lpi_protocol_t proto) {
 
 }
 
+ssize_t lpi_proc_write(struct file *file, const char __user *ubuf, size_t count, loff_t *ppos){
+    printk( KERN_DEBUG "write handler\n");
+    return -1;
+}
+
+ssize_t lpi_proc_read(struct file *file, char __user *ubuf, size_t count, loff_t *ppos){
+    printk( KERN_DEBUG "read handler\n");
+    return 0;
+}
+
+int lpi_create_files(struct net *net){
+//    struct proc_dir_entry *pde;
+//    pde =
+//        proc_mkdir(dir_name, NULL ); //net->proc_net
+
+
+//    if (!pde) {
+//        printk(KERN_WARNING
+//        "LPI: cant create net/%s\n", dir_name);
+//        return -ENOMEM;
+//    }
+
+//    static struct file_operations lpi_proc_fops = {
+//            .read    = lpi_proc_read,
+//            .write = lpi_proc_write,
+//    };
+
+//    ent=proc_create("test" , S_IRUGO | S_IWUGO, pde, &lpi_proc_fops);
+
+    return 0;
+}
+
+void lpi_delete_files(){
+//    proc_remove(ent);
+//    remove_proc_entry(dir_name, NULL); //net->proc_net
+}

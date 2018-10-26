@@ -36,6 +36,8 @@
 //typedef std::map<uint8_t, LPIModuleList *> LPIModuleMap;
 //typedef std::map<lpi_protocol_t, const char *> LPINameMap;
 
+
+//TODO Avoid typedef
 typedef struct lpimodulelist
 {
     lpi_module_t lpi_module1;

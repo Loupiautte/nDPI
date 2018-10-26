@@ -37,13 +37,13 @@
 #define MASKOCTET(x) \
         ((x) == ANY ? 0U : 255U)
 
-#if __BYTE_ORDER == __BIG_ENDIAN
+//#if __BYTE_ORDER == __BIG_ENDIAN
 #define FORMUP(a, b, c, d) \
         (unsigned)((((a)&0xFF)<<24)|(((b)&0xFF)<<16)|(((c)&0xFF)<<8)|((d)&0xFF))
-#else
-#define FORMUP(a,b,c,d) \
-    (unsigned)((((d)&0xFF)<<24)|(((c)&0xFF)<<16)|(((b)&0xFF)<<8)|((a)&0xFF))
-#endif
+//#else
+//#define FORMUP(a,b,c,d) \ //
+//    (unsigned)((((d)&0xFF)<<24)|(((c)&0xFF)<<16)|(((b)&0xFF)<<8)|((a)&0xFF))
+//#endif
 
 
 #define FORMUPMASK(a, b, c, d) \
@@ -80,7 +80,7 @@ uint32_t byteswap32(uint32_t num);
 uint16_t byteswap16(uint16_t num);
 
 
-#if __BYTE_ORDER == __BIG_ENDIAN
+//#if __BYTE_ORDER == __BIG_ENDIAN
 #define bswap_host_to_be64(num) ((uint64_t)(num))
 #define bswap_host_to_le64(num) byteswap64(num)
 #define bswap_host_to_be32(num) ((uint32_t)(num))
@@ -98,24 +98,24 @@ uint16_t byteswap16(uint16_t num);
 /* We use ntoh*() here, because the compiler may
  * attempt to optimise it
   */
-#elif __BYTE_ORDER == __LITTLE_ENDIAN
-#define bswap_host_to_be64(num) (byteswap64(num))
-#define bswap_host_to_le64(num) ((uint64_t)(num))
-#define bswap_host_to_be32(num) (htonl(num))
-#define bswap_host_to_le32(num) ((uint32_t)(num))
-#define bswap_host_to_be16(num) (htons(num))
-#define bswap_host_to_le16(num) ((uint16_t)(num))
-
-#define bswap_be_to_host64(num) (byteswap64(num))
-#define bswap_le_to_host64(num) ((uint64_t)(num))
-#define bswap_be_to_host32(num) (ntohl(num))
-#define bswap_le_to_host32(num) ((uint32_t)(num))
-#define bswap_be_to_host16(num) (ntohs(num))
-#define bswap_le_to_host16(num) ((uint16_t)(num))
-
-#else
-#error "Unknown byte order"
-#endif
+//#elif __BYTE_ORDER == __LITTLE_ENDIAN
+//#define bswap_host_to_be64(num) (byteswap64(num))
+//#define bswap_host_to_le64(num) ((uint64_t)(num))
+//#define bswap_host_to_be32(num) (htonl(num))
+//#define bswap_host_to_le32(num) ((uint32_t)(num))
+//#define bswap_host_to_be16(num) (htons(num))
+//#define bswap_host_to_le16(num) ((uint16_t)(num))
+//
+//#define bswap_be_to_host64(num) (byteswap64(num))
+//#define bswap_le_to_host64(num) ((uint64_t)(num))
+//#define bswap_be_to_host32(num) (ntohl(num))
+//#define bswap_le_to_host32(num) ((uint32_t)(num))
+//#define bswap_be_to_host16(num) (ntohs(num))
+//#define bswap_le_to_host16(num) ((uint16_t)(num))
+//
+//#else
+//#error "Unknown byte order"
+//#endif
 
 bool match_str_either(lpi_data_t *data, const char *string);
 
