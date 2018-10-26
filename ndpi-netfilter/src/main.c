@@ -87,7 +87,6 @@ static char info6_name[]="info6";
 #ifdef BT_ANNOUNCE
 static char ann_name[]="announce";
 #endif
-
 static char proto_name[]="proto";
 
 

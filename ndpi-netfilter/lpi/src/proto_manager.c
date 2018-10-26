@@ -41,8 +41,8 @@ void register_protocol(lpi_module_t *mod, LPIModuleMap *mod_map) {
     {
         if (mod->priority == node->priority) {
             find_priority = true;
-            LPIModuleList *lpiModuleList = node->lpiModuleList;
-
+            LPIModuleList *lpiModuleList;
+            lpiModuleList = node->lpiModuleList;
             LPIModuleList *newModuleList;
             newModuleList = kmalloc(sizeof(*newModuleList), GFP_KERNEL);
             newModuleList->lpi_module1 = *mod;
@@ -73,22 +73,6 @@ void register_protocol(lpi_module_t *mod, LPIModuleMap *mod_map) {
 
         list_add(&(lpiModuleMap->list), &(mod_map->list));
     }
-
-//	LPIModuleMap::iterator it;
-//	LPIModuleList *ml;
-//
-//	it = mod_map->find(mod->priority);
-//
-//	if (it == mod_map->end()) {
-//		(*mod_map)[mod->priority] = new LPIModuleList();
-//
-//		it = mod_map->find(mod->priority);
-//	}
-//
-//	ml = it->second;
-//	ml->push_back(mod);
-
-
 }
 
 void free_protocols(LPIModuleMap *mod_map) {
@@ -106,17 +90,6 @@ void free_protocols(LPIModuleMap *mod_map) {
         list_del(&node->list);
         kfree(node);
     }
-
-//	LPIModuleMap::iterator it;
-//	LPIModuleList *ml;
-//
-//	for (it = mod_map->begin(); it != mod_map->end(); it ++) {
-//		ml = it->second;
-//
-//		ml->clear();
-//		delete(ml);
-//	}
-//	mod_map->clear();
 }
 
 int register_tcp_protocols(LPIModuleMap *mod_map) {

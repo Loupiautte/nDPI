@@ -775,7 +775,7 @@ ssize_t lpi_proc_read(struct file *file, char __user *ubuf, size_t count, loff_t
  * @param net
  * @return
  */
-int lpi_create_files(struct net *net);
+int lpi_create_files(void);
 
 void lpi_delete_files(void);
 

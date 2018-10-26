@@ -78,6 +78,7 @@ static inline bool match_telegram_query(uint32_t payload, uint32_t len) {
 
 static inline bool match_abridged_telegram_resp(uint32_t payload, uint32_t len) {
 
+        uint32_t lenfield;
         /* Fast acknowledgement -- technically this should only match if
          * top bit of the length field is set, but we're probably ok to not
          * enforce that.
@@ -90,7 +91,7 @@ static inline bool match_abridged_telegram_resp(uint32_t payload, uint32_t len) 
                 return true;
 
         /* Otherwise, first byte is the length field */
-        uint32_t lenfield = ((ntohl(payload) >> 24));
+        lenfield = ((ntohl(payload) >> 24));
         
         if (lenfield * 4 == len - 1)
                 return true;

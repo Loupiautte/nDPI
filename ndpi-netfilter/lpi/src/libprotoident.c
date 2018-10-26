@@ -38,11 +38,21 @@
 #include "libprotoident.h"
 #include "proto_manager.h"
 #include <net/net_namespace.h>
+#include <linux/list.h>
+#include <linux/uaccess.h>
 
-static struct proc_dir_entry *ent;
+static struct proc_dir_entry *pde_lpi;
+static char dir_name[]="xt_lpi";
+static char proto_lpi_name[]="proto_lpi";
 static bool init_called = false;
 LPIModuleMap TCP_protocols;
 LPIModuleMap UDP_protocols;
+
+static const struct file_operations lpi_proc_fops = {
+        .owner = THIS_MODULE,
+        .read    = lpi_proc_read,
+        .write = lpi_proc_write,
+};
 
 //lpi_module_t *lpi_icmp = NULL;
 //lpi_module_t *lpi_unsupported = NULL;
@@ -84,7 +94,11 @@ int lpi_init_library() {
 
     /* Create proc files */
 
-
+    if(lpi_create_files()){
+        printk(KERN_ERR
+        "LPI : ERROR : can't created files");
+        return -1;
+    }
 
 
 //    init_other_protocols(&lpi_names);
@@ -107,7 +121,7 @@ int lpi_init_library() {
 void lpi_free_library() {
 
     printk(KERN_NOTICE
-    "LPI : Free all protocols");
+    "LPI : Free library");
     free_protocols(&TCP_protocols);
     free_protocols(&UDP_protocols);
     lpi_delete_files();
@@ -587,33 +601,55 @@ ssize_t lpi_proc_write(struct file *file, const char __user *ubuf, size_t count,
 }
 
 ssize_t lpi_proc_read(struct file *file, char __user *ubuf, size_t count, loff_t *ppos){
-    printk( KERN_DEBUG "read handler\n");
-    return 0;
+    int BUFSIZE = 2048;
+    int m = 0;
+    char buf[BUFSIZE];
+    int nb_letter=0;
+    int addr_buf= 0;
+    LPIModuleMap *node, *tmp_node;
+    LPIModuleList *node_list, *tmp_node_list;
+
+    if(*ppos > 0 || count < BUFSIZE)
+        return 0;
+
+
+    list_for_each_entry(node, &(TCP_protocols.list), list){
+        list_for_each_entry(node_list, &node->lpiModuleList->list, list){
+            nb_letter = sprintf(buf,"%s\n", node_list->lpi_module1.name);
+            if(copy_to_user(ubuf + addr_buf,buf,nb_letter))
+                return -EFAULT;
+            *ppos = nb_letter;
+            addr_buf += nb_letter;
+
+//            len += sprintf(buf + len,"%d\n",node_list->lpi_module1.name);
+        }
+    }
+    return addr_buf;
 }
 
-int lpi_create_files(struct net *net){
-//    struct proc_dir_entry *pde;
-//    pde =
-//        proc_mkdir(dir_name, NULL ); //net->proc_net
+int lpi_create_files(){
+    struct proc_dir_entry *pde;
+    pde =
+        proc_mkdir(dir_name, init_net.proc_net );
 
+    if (pde == NULL) {
+        printk(KERN_ERR
+        "LPI: cant create net/%s", dir_name);
+        return -ENOMEM;
+    }
 
-//    if (!pde) {
-//        printk(KERN_WARNING
-//        "LPI: cant create net/%s\n", dir_name);
-//        return -ENOMEM;
-//    }
+    pde_lpi=proc_create(proto_lpi_name , S_IRUGO | S_IWUGO, pde, &lpi_proc_fops);
 
-//    static struct file_operations lpi_proc_fops = {
-//            .read    = lpi_proc_read,
-//            .write = lpi_proc_write,
-//    };
-
-//    ent=proc_create("test" , S_IRUGO | S_IWUGO, pde, &lpi_proc_fops);
+    if (pde_lpi == NULL) {
+        printk(KERN_ERR
+        "LPI: cant create net/%s", proto_lpi_name);
+        return -ENOMEM;
+    }
 
     return 0;
 }
 
 void lpi_delete_files(){
-//    proc_remove(ent);
-//    remove_proc_entry(dir_name, NULL); //net->proc_net
+    proc_remove(pde_lpi);
+    remove_proc_entry(dir_name, init_net.proc_net);
 }
