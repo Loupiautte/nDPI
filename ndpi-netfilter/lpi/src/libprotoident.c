@@ -601,30 +601,27 @@ ssize_t lpi_proc_write(struct file *file, const char __user *ubuf, size_t count,
 }
 
 ssize_t lpi_proc_read(struct file *file, char __user *ubuf, size_t count, loff_t *ppos){
-    int BUFSIZE = 2048;
-    int m = 0;
-    char buf[BUFSIZE];
-    int nb_letter=0;
-    int addr_buf= 0;
+    //TODO Add a spinlock
+    char buf[128] = {0};
+    int index = 0;
+    int len = 0;
+
     LPIModuleMap *node, *tmp_node;
     LPIModuleList *node_list, *tmp_node_list;
 
-    if(*ppos > 0 || count < BUFSIZE)
-        return 0;
-
-
     list_for_each_entry(node, &(TCP_protocols.list), list){
         list_for_each_entry(node_list, &node->lpiModuleList->list, list){
-            nb_letter = sprintf(buf,"%s\n", node_list->lpi_module1.name);
-            if(copy_to_user(ubuf + addr_buf,buf,nb_letter))
-                return -EFAULT;
-            *ppos = nb_letter;
-            addr_buf += nb_letter;
-
-//            len += sprintf(buf + len,"%d\n",node_list->lpi_module1.name);
+            if(*ppos == index){
+                len = strlcpy(buf, node_list->lpi_module1.name, sizeof(buf));
+                if(copy_to_user(ubuf,buf,strlen(buf)+1))
+                    return -EFAULT;
+                (*ppos)++;
+                return strlen(buf) + 1;
+            }
+            index++;
         }
     }
-    return addr_buf;
+    return 0;
 }
 
 int lpi_create_files(){
@@ -638,7 +635,7 @@ int lpi_create_files(){
         return -ENOMEM;
     }
 
-    pde_lpi=proc_create(proto_lpi_name , S_IRUGO | S_IWUGO, pde, &lpi_proc_fops);
+    pde_lpi=proc_create(proto_lpi_name , 0, pde, &lpi_proc_fops);
 
     if (pde_lpi == NULL) {
         printk(KERN_ERR

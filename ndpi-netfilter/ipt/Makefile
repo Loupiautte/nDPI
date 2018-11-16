@@ -1,8 +1,8 @@
 NDPI_SRC := ../../src
 NDPI_PRO := ${NDPI_SRC}/lib/protocols
-LDPI_SRC := ../lpi/src
-LDPI_PRO_T := ${LDPI_SRC}/tcp
-LDPI_PRO_U := ${LDPI_SRC}/udp
+LPI_SRC := ../lpi/src
+LPI_PRO_T := ${LPI_SRC}/tcp
+LPI_PRO_U := ${LPI_SRC}/udp
 XTBL := $(shell pkg-config --variable=xtlibdir xtables)
 
 CFLAGS = -fPIC -I../.. -I${NDPI_SRC}/include -I${NDPI_SRC}/lib -I../src -I../libre -DOPENDPI_NETFILTER_MODULE -O2 -Wall

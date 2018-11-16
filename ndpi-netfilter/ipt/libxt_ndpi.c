@@ -20,6 +20,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -58,6 +63,7 @@ int NDPI_BITMASK_IS_EMPTY(NDPI_PROTOCOL_BITMASK a) {
 
 static char *prot_short_str[NDPI_NUM_BITS] = { /*NDPI_PROTOCOL_SHORT_STRING,*/ NULL,};
 static char prot_disabled[NDPI_NUM_BITS + 1] = {0,};
+static char *lpi_proto_list[320][32];
 
 #define NDPI_OPT_ERROR    (NDPI_LAST_IMPLEMENTED_PROTOCOL+1)
 #define NDPI_OPT_PROTO    (NDPI_LAST_IMPLEMENTED_PROTOCOL+2)
@@ -384,7 +390,7 @@ static int ndpi_print_prot_list(int cond) {
     char line[128];
     char *pn[NDPI_NUM_BITS + 1];
 
-    bzero((char *) &pn[0], sizeof(pn));
+    bzero( &pn[0], sizeof(pn));
 
     for (i = 1, d = 0; i < NDPI_NUM_BITS; i++) {
         if (!prot_short_str[i] || !strncmp(prot_short_str[i], "badproto_", 9)) continue;
@@ -409,6 +415,29 @@ static int ndpi_print_prot_list(int cond) {
     return d;
 }
 
+static int lpi_print_prot_list(int cond){
+    int l=0, c=0;
+    char line[128];
+    char pn[32];
+    bzero((char *) &pn[0], sizeof(pn));
+
+    for(int i = 0; i < 320; i++){
+        strcpy(pn,(char *)lpi_proto_list[i]);
+        l += snprintf(&line[l], sizeof(line) - 1 - l, "%-20s ", pn);
+        c++;
+        if (c == 4) {
+            printf("%s\n", line);
+            c = 0;
+            l = 0;
+        }
+        if(strcmp(pn,"") == 0){
+            printf("%s\n",line);
+            break;
+        }
+    }
+    return  0;
+}
+
 static void
 ndpi_mt_help(void) {
     int d;
@@ -427,9 +456,12 @@ ndpi_mt_help(void) {
            "  --unknown          Match unknown protocol packets\n");
     printf("Enabled NDPI protocols: ( option form '--protoname' or --proto protoname[,protoname...])\n");
     d = ndpi_print_prot_list(0);
-    if (!d) return;
-    printf("Disabled NDPI protocols:\n");
-    ndpi_print_prot_list(1);
+    if (d){
+        printf("Disabled NDPI protocols:\n");
+        ndpi_print_prot_list(1);
+    }
+    printf("\nEnable LPI protocols: \n");
+    lpi_print_prot_list(0);
 }
 
 static struct option ndpi_mt_opts[NDPI_LAST_IMPLEMENTED_PROTOCOL + 11];
@@ -477,6 +509,7 @@ enum {
 static void NDPI_help(void) {
     printf(
             "NDPI target options:\n"
+            "  --value value/mask                  Set value = (value & ~mask) | value\n"
             "  --value value/mask                  Set value = (value & ~mask) | value\n"
             "  --ndpi-id                           Set value = (value & ~proto_mask) | proto_mark by any proto\n"
             "  --ndpi-id-p                         Set value = (value & ~proto_mask) | proto_mark by proto\n"
@@ -575,7 +608,7 @@ static void NDPI_print_v0(const void *ip,
     }
     if (info->t_accept)
         l += snprintf(&buf[l], sizeof(buf) - l - 1, " ACCEPT");
-    printf(buf);
+    printf("%s", buf);
 }
 
 static void NDPI_save_v0(const void *ip, const struct xt_entry_target *target) {
@@ -602,7 +635,7 @@ static void NDPI_save_v0(const void *ip, const struct xt_entry_target *target) {
         l += snprintf(&buf[l], sizeof(buf) - l - 1, " --set-clsf");
     if (info->t_accept)
         l += snprintf(&buf[l], sizeof(buf) - l - 1, " --accept");
-    printf(buf);
+    printf("%s",buf);
 
 }
 
@@ -635,16 +668,20 @@ static struct xtables_target ndpi_tg_reg[] = {
 };
 
 void _init(void) {
-    int i;
-    char buf[128], *c, pname[32], mark[32];
+    int i = 0;
+    char buf[128], *c, pname[32], mark[32], lpi_proto_name[32];
     uint32_t index;
+    ssize_t ret = -1;
 
+    int fd = open("/proc/net/xt_lpi/proto_lpi", O_RDONLY);
+    while(ret){
+        ret = read(fd, lpi_proto_name, sizeof(lpi_proto_name)-1);
+        strcpy((char *)(lpi_proto_list[i]), lpi_proto_name);
+        i++;
+    }
+    close(fd);
     FILE *f_proto = fopen("/proc/net/xt_ndpi/proto", "r");
 
-    if (!f_proto)
-        xtables_error(PARAMETER_PROBLEM, "xt_ndpi: kernel module not load.");
-    pname[0] = '\0';
-    index = 0;
     while (!feof(f_proto)) {
         c = fgets(buf, sizeof(buf) - 1, f_proto);
         if (!c) break;
@@ -660,6 +697,9 @@ void _init(void) {
         prot_short_str[index] = strdup(pname);
     }
     fclose(f_proto);
+
+
+
     if (index >= NDPI_NUM_BITS)
         xtables_error(PARAMETER_PROBLEM, "xt_ndpi: kernel module version missmatch.");
 
