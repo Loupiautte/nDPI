@@ -56,3 +56,10 @@ stamp-h1
 /tests/Makefile
 /src/lib/ndpi_network_list_compile
 /src/lib/ndpi_network_list.c.inc
+
+.idea/
+ndpi-netfilter/lpi/src/lpi_make (original).sh
+ndpi-netfilter/output.txt
+ndpi-netfilter/src/main.o.ur-safe
+src/lib/ndpi_main.o.ur-safe
+src/lib/protocols/bittorrent.o.ur-safe
