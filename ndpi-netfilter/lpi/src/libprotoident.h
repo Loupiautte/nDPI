@@ -612,6 +612,12 @@ typedef enum {
     LPI_PROTO_LAST        /** ALWAYS have this as the last value */
 } lpi_protocol_t;
 
+typedef enum {
+    TRACE_IPPROTO_ICMP	= 1,	/**< Internet Control Message protocol */
+    TRACE_IPPROTO_TCP	= 6,	/**< Transmission Control Protocol */
+    TRACE_IPPROTO_UDP	= 17	/**< User Datagram Protocol */
+} lpi_ipproto_t;
+
 /* This structure stores all the data needed by libprotoident to identify the
  * application protocol for a flow. Do not change the contents of this struct
  * directly - lpi_update_data() will do that for you - but reading the values
@@ -645,10 +651,16 @@ struct lpi_module {
 
 };
 
-typedef struct libtrace_ip {
-    uint32_t *ip_dst_s_addr;
-    uint32_t *ip_src_s_addr;
-} libtrace_ip_t;
+typedef struct lpi_packet_t {
+    void *payload;			/**< Pointer to the link layer */
+    int payload_length;		/**< Cached payload length */
+
+} lpi_packet_t;
+
+//typedef struct libtrace_ip {
+//    uint32_t *ip_dst_s_addr;
+//    uint32_t *ip_src_s_addr;
+//} libtrace_ip_t;
 
 typedef struct lpi_thread {
     int index;
@@ -667,7 +679,7 @@ int lpi_init_library(void);
 /** Shuts down the LPI library, by de-registering all the protocol modules */
 void lpi_free_library(void);
 
-void lpi_process_packet(void);
+void lpi_process_packet(uint8_t trans_proto, uint32_t payload, uint32_t payload_len, int dir);
 
 /** Initialises an LPI data structure, setting all the members to appropriate
  *  starting values.
@@ -753,7 +765,7 @@ lpi_module_t *lpi_guess_protocol(lpi_data_t *data);
  */
 //bool lpi_is_protocol_inactive(lpi_protocol_t proto);
 
-//TODO Explanation
+
 /**
  *
  * @param file

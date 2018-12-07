@@ -35,6 +35,7 @@
 //#include <stdlib.h>
 //#include <signal.h>
 //
+
 #include "libprotoident.h"
 #include "proto_manager.h"
 #include <net/net_namespace.h>
@@ -61,7 +62,7 @@ static const struct file_operations lpi_proc_fops = {
 
 //static LPINameMap lpi_names;
 
-static int seq_cmp(uint32_t seq_a, uint32_t seq_b) {
+//static int seq_cmp(uint32_t seq_a, uint32_t seq_b) {
 //
 //    if (seq_a == seq_b) return 0;
 //
@@ -72,7 +73,7 @@ static int seq_cmp(uint32_t seq_a, uint32_t seq_b) {
 //        /* WRAPPING */
 //        return (int) (UINT32_MAX - ((seq_b - seq_a) - 1));
 
-}
+//}
 
 int lpi_init_library() {
 
@@ -150,12 +151,24 @@ void lpi_free_library() {
     init_called = false;
 }
 
-void lpi_process_packet() {
-    lpi_data_t data;
+void lpi_process_packet(uint8_t trans_proto, uint32_t payload, uint32_t payload_len, int dir) {
+    static lpi_data_t data;
 
     lpi_init_data(&data);
 
+    printk(KERN_NOTICE "LPI : dir : %d, trans_proto : %d, payload : %lu, payload_len : %lu", dir, trans_proto, payload, payload_len);
 
+    /*
+    if(dir){
+        data.trans_proto = trans_proto;
+        data.payload[0] = payload;
+        data.payload_len[0] = payload_len;
+    }else{
+        data.trans_proto = trans_proto;
+        data.payload[1] = payload;
+        data.payload_len[1] = payload_len;
+    }
+    */
 }
 
 void lpi_init_data(lpi_data_t *data) {
@@ -232,13 +245,89 @@ void lpi_init_data(lpi_data_t *data) {
 
 int lpi_update_data(void *packet, lpi_data_t *data, uint8_t dir) {
 
-    char *payload = NULL;
-    uint32_t psize = 0;
-    uint32_t rem = 0;
-    uint8_t proto = 0;
-    void *transport;
-    uint32_t four_bytes;
-    libtrace_ip_t *ip = NULL;
+//    char *payload = NULL;
+//    uint32_t psize = 0;
+//    uint32_t rem = 0;
+//    uint8_t proto = 0;
+//    void *transport;
+//    uint32_t four_bytes;
+//    libtrace_ip_t *ip = NULL;
+
+//    psize = trace_get_payload_length(packet);
+//
+//    /* Don't bother if we've observed 32k of data - the first packet must
+//     * surely been within that. This helps us avoid issues with sequence
+//     * number wrapping when doing the reordering check below */
+//    if (data->observed[dir] > 32 * 1024)
+//        return 0;
+//
+//    data->observed[dir] += psize;
+//
+//    /* If we're TCP, we have to wait to check that we haven't been
+//     * reordered */
+//    if (data->trans_proto != 6 && data->payload_len[dir] != 0)
+//        return 0;
+//
+//    transport = trace_get_transport(packet, &proto, &rem);
+//    if (data->trans_proto == 0)
+//        data->trans_proto = proto;
+//
+//    if (transport == NULL || rem == 0)
+//        return 0;
+//
+//    if (proto == 6) {
+//        if (update_tcp_flow(data, (libtrace_tcp_t *) transport, dir, rem, psize) == 0)
+//            return 0;
+//        payload = (char *) trace_get_payload_from_tcp(
+//                (libtrace_tcp_t *) transport, &rem);
+//    }
+//
+//    if (proto == 17) {
+//        if (update_udp_flow(data, (libtrace_udp_t *) transport, rem) == 0)
+//            return 0;
+//        payload = (char *) trace_get_payload_from_udp(
+//                (libtrace_udp_t *) transport, &rem);
+//    }
+//
+//    ip = trace_get_ip(packet);
+//
+//    if (payload == NULL)
+//        return 0;
+//    if (psize <= 0)
+//        return 0;
+//
+//    four_bytes = (*(uint32_t *) payload);
+//
+//    if (psize < 4) {
+//        four_bytes = (ntohl(four_bytes)) >> (8 * (4 - psize));
+//        four_bytes = htonl(four_bytes << (8 * (4 - psize)));
+//    }
+//
+//    data->payload[dir] = four_bytes;
+//    data->payload_len[dir] = psize;
+//
+//    if (ip != NULL && data->ips[0] == 0) {
+//        if (dir == 0) {
+//            data->ips[0] = ip->ip_src_s_addr;
+//            data->ips[1] = ip->ip_dst_s_addr;
+//        } else {
+//            data->ips[1] = ip->ip_src_s_addr;
+//            data->ips[0] = ip->ip_dst_s_addr;
+//        }
+//    }
+//
+//    return 1;
+
+
+
+
+//    char *payload = NULL;
+//    uint32_t psize = 0;
+//    uint32_t rem = 0;
+//    uint8_t proto = 0;
+//    void *transport;
+//    uint32_t four_bytes;
+//    libtrace_ip_t *ip = NULL;
 
 //    //tcp = trace_get_tcp(packet);
 //    psize = trace_get_payload_length(packet);
@@ -308,7 +397,7 @@ int lpi_update_data(void *packet, lpi_data_t *data, uint8_t dir) {
 //
 }
 
-static lpi_module_t *test_protocol_list(LPIModuleList *ml, lpi_data_t *data) {
+//static lpi_module_t *test_protocol_list(LPIModuleList *ml, lpi_data_t *data) {
 //    printk(KERN_DEBUG
 //    "Begin function : lpi_module_t");
 //
@@ -351,9 +440,9 @@ static lpi_module_t *test_protocol_list(LPIModuleList *ml, lpi_data_t *data) {
     }
 
     return NULL; */
-}
+//}
 
-static lpi_module_t *guess_protocol(LPIModuleMap *modmap, lpi_data_t *data) {
+//static lpi_module_t *guess_protocol(LPIModuleMap *modmap, lpi_data_t *data) {
 //    printk(KERN_DEBUG
 //    "Beging function : guess protocol");
 //    lpi_module_t *proto = NULL;
@@ -373,6 +462,8 @@ static lpi_module_t *guess_protocol(LPIModuleMap *modmap, lpi_data_t *data) {
 //    "End function : guess_protocol");
 //    return proto;
     //TODO Check
+
+
 //    lpi_module_t *proto = NULL;
 //
 //    LPIModuleMap::iterator m_it;
@@ -392,11 +483,9 @@ static lpi_module_t *guess_protocol(LPIModuleMap *modmap, lpi_data_t *data) {
 //
 //    return proto;
 
-}
+//}
 
-lpi_module_t *lpi_guess_protocol(lpi_data_t *data) {
-//    printk(KERN_DEBUG
-//    "Begin function : lpi_guess_protocol");
+//lpi_module_t *lpi_guess_protocol(lpi_data_t *data) {
 //    lpi_module_t *p = NULL;
 //
 //    if (!init_called) {
@@ -406,26 +495,18 @@ lpi_module_t *lpi_guess_protocol(lpi_data_t *data) {
 //
 //    switch (data->trans_proto) {
 //        case TRACE_IPPROTO_ICMP
-//            printk(KERN_DEBUG
-//            "End function : lpi_guess_protocol");
 //            return lpi_icmp;
 //        case TRACE_IPPROTO_TCP:
 //            p = guess_protocol(&TCP_protocols, data);
 //            if (p == NULL)
 //                p = lpi_unknown_tcp;
-//            printk(KERN_DEBUG
-//            "End function : lpi_guess_protocol");
 //            return p;
 //        case TRACE_IPPROTO_UDP:
 //            p = guess_protocol(&UDP_protocols, data);
 //            if (p == NULL)
 //                p = lpi_unknown_udp;
-//            printk(KERN_DEBUG
-//            "End function : lpi_guess_protocol");
 //            return p;
 //        default:
-//            printk(KERN_DEBUG
-//            "End function : lpi_guess_protocol");
 //            return lpi_unsupported;
 //    }
 
@@ -458,7 +539,7 @@ lpi_module_t *lpi_guess_protocol(lpi_data_t *data) {
 //
 //
 //    return p;
-}
+//}
 
 lpi_category_t lpi_categorise(lpi_module_t *module) {
 
@@ -568,7 +649,7 @@ const char *lpi_print_category(lpi_category_t category) {
 
 }
 
-const char *lpi_print(lpi_protocol_t proto) {
+//const char *lpi_print(lpi_protocol_t proto) {
 
 
 //    LPINameMap::iterator it;
@@ -580,7 +661,7 @@ const char *lpi_print(lpi_protocol_t proto) {
 //    }
 //    return (it->second);
 
-}
+//}
 
 bool lpi_is_protocol_inactive(lpi_protocol_t proto) {
 
@@ -606,8 +687,8 @@ ssize_t lpi_proc_read(struct file *file, char __user *ubuf, size_t count, loff_t
     int index = 0;
     int len = 0;
 
-    LPIModuleMap *node, *tmp_node;
-    LPIModuleList *node_list, *tmp_node_list;
+    LPIModuleMap *node;
+    LPIModuleList *node_list;
 
     list_for_each_entry(node, &(TCP_protocols.list), list){
         list_for_each_entry(node_list, &node->lpiModuleList->list, list){

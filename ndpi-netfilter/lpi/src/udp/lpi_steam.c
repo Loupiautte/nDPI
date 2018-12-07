@@ -24,7 +24,7 @@
  *
  */
 
-#include <linux/kernel.h>
+//#include <linux/kernel.h>
 
 #include "libprotoident.h"
 #include "proto_manager.h"

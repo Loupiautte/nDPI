@@ -970,11 +970,13 @@ ndpi_process_packet(struct ndpi_net *n, struct nf_conn * ct, struct nf_ct_ext_nd
                     const struct sk_buff *skb,int dir)
 {
 	ndpi_protocol proto = NDPI_PROTOCOL_NULL;
-        struct ndpi_id_struct *src, *dst;
-        struct ndpi_flow_struct * flow;
+	struct ndpi_id_struct *src, *dst;
+    struct ndpi_flow_struct * flow;
 	uint32_t low_ip, up_ip, tmp_ip;
 	uint16_t low_port, up_port, tmp_port, protocol;
 	const struct iphdr *iph = NULL;
+	unsigned char payload[4];
+    printk(KERN_WARNING "NDPI : PROCESS PACKET");
 #ifdef NDPI_DETECTION_SUPPORT_IPV6
 	const struct ipv6hdr *ip6h;
 
@@ -982,6 +984,7 @@ ndpi_process_packet(struct ndpi_net *n, struct nf_conn * ct, struct nf_ct_ext_nd
 	if(ip6h && ip6h->version != 6) ip6h = NULL;
 #endif
 	iph = ip_hdr(skb);
+
 
 	if(iph && iph->version != 4) iph = NULL;
 
@@ -1056,14 +1059,22 @@ ndpi_process_packet(struct ndpi_net *n, struct nf_conn * ct, struct nf_ct_ext_nd
 	    }
 
 	    if(protocol == IPPROTO_TCP || protocol == IPPROTO_UDP) {
-		low_port = htons(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u.tcp.port);
-		up_port  = htons(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u.tcp.port);
+            low_port = htons(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u.tcp.port);
+            up_port  = htons(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u.tcp.port);
+
+            *payload = skb->data;
+
+            if(protocol == IPPROTO_TCP){
+                printk(KERN_NOTICE "Protocol TCP, Payload : , Payload_length : ");
+            }else {
+                printk(KERN_NOTICE "Protocol UDP, Payload : , Payload_length : ");
+            }
 	    } else {
-		low_port = up_port = 0;
+		    low_port = up_port = 0;
 	    }
 	    if (iph && flow && flow->packet_counter < 3 &&
 			!flow->protocol_id_already_guessed) {
-		proto.app_protocol = check_known_ipv4_service(n,
+		    proto.app_protocol = check_known_ipv4_service(n,
 				&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u3,up_port,protocol);
 		if(proto.app_protocol != NDPI_PROTOCOL_UNKNOWN)
 			proto.app_protocol = check_known_ipv4_service(n,
@@ -1072,17 +1083,17 @@ ndpi_process_packet(struct ndpi_net *n, struct nf_conn * ct, struct nf_ct_ext_nd
 			flow->protocol_id_already_guessed = 1;
 	    }
 	    if(proto.app_protocol == NDPI_PROTOCOL_UNKNOWN) {
-		if(low_ip > up_ip) { tmp_ip = low_ip; low_ip=up_ip; up_ip = tmp_ip; }
-		if(low_port > up_port) { tmp_port = low_port; low_port=up_port; up_port = tmp_port; }
-		proto = ndpi_guess_undetected_protocol (
+            if(low_ip > up_ip) { tmp_ip = low_ip; low_ip=up_ip; up_ip = tmp_ip; }
+            if(low_port > up_port) { tmp_port = low_port; low_port=up_port; up_port = tmp_port; }
+            proto = ndpi_guess_undetected_protocol (
 				n->ndpi_struct,protocol,low_ip,low_port,up_ip,up_port);
 	    }
 	} else {
 		add_stat(flow->packet.parsed_lines);
 	}
-	if( proto.app_protocol != NDPI_PROTOCOL_UNKNOWN ||
-	    proto.master_protocol != NDPI_PROTOCOL_UNKNOWN)
-		ct_ndpi->proto = proto;
+	if( proto.app_protocol != NDPI_PROTOCOL_UNKNOWN || proto.master_protocol != NDPI_PROTOCOL_UNKNOWN){
+            ct_ndpi->proto = proto;
+	}
 
 	return proto.app_protocol;
 }
