@@ -43,7 +43,6 @@
 
 #include "ahocorasick.h"
 #include "ndpi_api.h"
-#include "lpi_api.h"
 
 #include "ndpi_network_list.c.inc"
 #include "ndpi_content_match.c.inc"
@@ -2730,13 +2729,6 @@ void ndpi_set_bitmask_protocol_detection(char * label,
 
     NDPI_SAVE_AS_BITMASK(ndpi_struct->callback_buffer[idx].excluded_protocol_bitmask, ndpi_protocol_id);
   }
-}
-
-/* ******************************************************************** */
-
-void mpi_set_protocol_detection_bitmask2(int i){
-    printk(KERN_INFO "Begin function : ndpi_set_bitmask_protocol_detection");
-
 }
 
 /**
