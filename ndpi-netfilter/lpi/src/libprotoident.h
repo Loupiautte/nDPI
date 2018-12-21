@@ -679,7 +679,7 @@ int lpi_init_library(void);
 /** Shuts down the LPI library, by de-registering all the protocol modules */
 void lpi_free_library(void);
 
-void lpi_process_packet(uint8_t trans_proto, uint32_t payload, uint32_t payload_len, int dir);
+void lpi_process_packet(uint16_t trans_proto, u8 *payload, unsigned int payload_len, int dir);
 
 /** Initialises an LPI data structure, setting all the members to appropriate
  *  starting values.

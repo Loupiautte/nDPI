@@ -105,7 +105,7 @@ Note that the list is long, you best try: "iptables -m ndpi --help | more"
 
 An example rule would be (as root):
 
-        iptables -A OUTPUT -m ndpi --http -j REJECT
+        iptables -A OUTPUT -m ndpi --HTTP -j REJECT
 
 ------------------------------------------------------------------
 

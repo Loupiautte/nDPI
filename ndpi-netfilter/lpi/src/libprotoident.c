@@ -151,12 +151,12 @@ void lpi_free_library() {
     init_called = false;
 }
 
-void lpi_process_packet(uint8_t trans_proto, uint32_t payload, uint32_t payload_len, int dir) {
+void lpi_process_packet(uint16_t trans_proto, u8 *payload, unsigned int payload_len, int dir) {
     static lpi_data_t data;
 
     lpi_init_data(&data);
 
-    printk(KERN_NOTICE "LPI : dir : %d, trans_proto : %d, payload : %lu, payload_len : %lu", dir, trans_proto, payload, payload_len);
+    printk(KERN_NOTICE "LPI : dir : %d, trans_proto : %u, payload : %x, payload_len : %lu", dir, trans_proto, (int)payload & 0xffff , payload_len);
 
     /*
     if(dir){
