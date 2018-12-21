@@ -91,8 +91,6 @@ static char proto_name[]="proto";
 
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
-
-
 #define PROC_REMOVE(pde,net) proc_remove(pde)
 #else
 
@@ -975,8 +973,10 @@ ndpi_process_packet(struct ndpi_net *n, struct nf_conn * ct, struct nf_ct_ext_nd
 	uint32_t low_ip, up_ip, tmp_ip;
 	uint16_t low_port, up_port, tmp_port, protocol;
 	const struct iphdr *iph = NULL;
-	unsigned char payload[4];
-    printk(KERN_WARNING "NDPI : PROCESS PACKET");
+
+    unsigned int ip_head_len = 0;
+    unsigned int layer_4_head_len = 0;
+	u8 payload[4];
 #ifdef NDPI_DETECTION_SUPPORT_IPV6
 	const struct ipv6hdr *ip6h;
 
@@ -1042,7 +1042,7 @@ ndpi_process_packet(struct ndpi_net *n, struct nf_conn * ct, struct nf_ct_ext_nd
 #endif
 					(uint8_t *) iph, 
 					 skb->len, time, src, dst);
-	printk(KERN_NOTICE "NDPI protocol : %d, %d\n", proto.master_protocol, proto.app_protocol);
+//	printk(KERN_NOTICE "NDPI protocol : %d, %d\n", proto.master_protocol, proto.app_protocol);
 	if(proto.master_protocol == NDPI_PROTOCOL_UNKNOWN && 
 	          proto.app_protocol == NDPI_PROTOCOL_UNKNOWN ) {
 #ifdef NDPI_DETECTION_SUPPORT_IPV6
@@ -1062,14 +1062,50 @@ ndpi_process_packet(struct ndpi_net *n, struct nf_conn * ct, struct nf_ct_ext_nd
             low_port = htons(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u.tcp.port);
             up_port  = htons(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u.tcp.port);
 
-            *payload = skb->data;
+//            payload = *(skb->data);
+//            printk(KERN_NOTICE "LPI : Payload : %x %x %x %x ",skb->data[0], skb->data[1], skb->data[2], skb->data[3]);
+
+//            printk(KERN_NOTICE "LPI : Data len : %d", skb->len);
+//            for(i = 0; i < skb_headlen(skb); i++){
+//                printk(KERN_NOTICE "LPI : %x", skb->data[i]);
+//            }
+//            printk(KERN_NOTICE "LPI : end of packet");
 
             if(protocol == IPPROTO_TCP){
-                printk(KERN_NOTICE "Protocol TCP, Payload : , Payload_length : ");
-            }else {
-                printk(KERN_NOTICE "Protocol UDP, Payload : , Payload_length : ");
+//                printk(KERN_NOTICE "LPI : Protocol TCP, Payload : %x %x %x %x, Payload_length : %u, Timestamp : %llx, dir : %d", payload[0], payload[1], payload[2], payload[3], skb->len, skb->tstamp, dir);
+//                lpi_process_packet(protocol, payload, skb->len, dir);
+                printk(KERN_NOTICE "LPI : Data len : %d", skb->len);
+
+                ip_head_len = (skb->data[0] & 0xf) * 4;
+                printk(KERN_NOTICE "LPI : IP header length %d ", ip_head_len);
+
+                printk(KERN_NOTICE "LPI : TCP header length value %x ", skb->data[ip_head_len + 12]);
+                printk(KERN_NOTICE "LPI : TCP header length next value %x ", skb->data[ip_head_len + 13]);
+                layer_4_head_len = ((skb->data[ip_head_len + 12] & 0xf0) >> 4) * 4;
+                printk(KERN_NOTICE "LPI : TCP header length %d ", layer_4_head_len);
+                if((ip_head_len + layer_4_head_len) < skb_headlen(skb) - 4){
+                    printk(KERN_NOTICE "LPI : Payload : %x %x %x %x ",skb->data[ip_head_len + layer_4_head_len], skb->data[ip_head_len + layer_4_head_len + 1], skb->data[ip_head_len + layer_4_head_len + 2], skb->data[ip_head_len + layer_4_head_len + 3]);
+                    printk(KERN_NOTICE " ");
+                } else {
+                    printk(KERN_NOTICE "LPI : Reassembled TCP");
+                    printk(KERN_NOTICE " ");
+                }
+            } else {
+                printk(KERN_NOTICE "LPI : Data len : %d", skb->len);
+
+                ip_head_len = (skb->data[0] & 0xf) * 4;
+                printk(KERN_NOTICE "LPI : IP header length %d ", ip_head_len);
+                layer_4_head_len = (skb->data[ip_head_len] & 0xf) * 4;
+                printk(KERN_NOTICE "LPI : UDP header length %d ", layer_4_head_len);
+				if((ip_head_len + layer_4_head_len) < skb_headlen(skb) - 4){
+					printk(KERN_NOTICE "LPI : Payload : %x %x %x %x ",skb->data[ip_head_len + layer_4_head_len], skb->data[ip_head_len + layer_4_head_len + 1], skb->data[ip_head_len + layer_4_head_len + 2], skb->data[ip_head_len + layer_4_head_len + 3]);
+					printk(KERN_NOTICE " ");
+				} else {
+					printk(KERN_NOTICE "LPI : Reassembled UDP");
+					printk(KERN_NOTICE " ");
+				}
             }
-	    } else {
+	    }else {
 		    low_port = up_port = 0;
 	    }
 	    if (iph && flow && flow->packet_counter < 3 &&
@@ -3434,6 +3470,7 @@ static int __net_init ndpi_net_init(struct net *net)
 	}
 	do {
 		ndpi_protocol_match *hm;
+		ndpi_protocol_match_result ret_match;
 		char *cstr;
 		int i2;
 
@@ -3505,7 +3542,8 @@ static int __net_init ndpi_net_init(struct net *net)
 			}
 			sml = strlen(hm->string_to_match);
 			i2 = ndpi_match_string_subprotocol(n->ndpi_struct,
-								hm->string_to_match,sml,1);
+							hm->string_to_match,sml,
+							&ret_match,1);
 			if(i2 == NDPI_PROTOCOL_UNKNOWN || i != i2) {
 				pr_err("xt_ndpi: Warning! Hostdef '%s' %s! Skipping.\n",
 						hm->string_to_match,
@@ -3605,6 +3643,7 @@ static int __net_init ndpi_net_init(struct net *net)
 #ifndef NF_CT_CUSTOM
 static void replace_nf_destroy(void)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,19,0)
 	void (*destroy)(struct nf_conntrack *);
 	rcu_read_lock();
 	destroy = rcu_dereference(nf_ct_destroy);
@@ -3612,10 +3651,22 @@ static void replace_nf_destroy(void)
 	rcu_assign_pointer(ndpi_nf_ct_destroy,destroy);
         RCU_INIT_POINTER(nf_ct_destroy, ndpi_destroy_conntrack);
 	rcu_read_unlock();
+#else
+	struct nf_ct_hook *hook;
+	rcu_read_lock();
+	hook = rcu_dereference(nf_ct_hook);
+	BUG_ON(hook == NULL);
+	rcu_assign_pointer(ndpi_nf_ct_destroy,hook->destroy);
+	/* This is a hellish hack! */
+	hook->destroy = ndpi_destroy_conntrack;
+	rcu_read_unlock();
+
+#endif
 }
 
 static void restore_nf_destroy(void)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,19,0)
 	void (*destroy)(struct nf_conntrack *);
 	rcu_read_lock();
 	destroy = rcu_dereference(nf_ct_destroy);
@@ -3624,6 +3675,17 @@ static void restore_nf_destroy(void)
 	BUG_ON(destroy == NULL);
 	rcu_assign_pointer(nf_ct_destroy,destroy);
 	rcu_read_unlock();
+#else
+	struct nf_ct_hook *hook;
+	rcu_read_lock();
+	hook = rcu_dereference(nf_ct_hook);
+	BUG_ON(hook == NULL);
+	BUG_ON(hook->destroy != ndpi_destroy_conntrack);
+	/* This is a hellish hack! */
+	hook->destroy = rcu_dereference(ndpi_nf_ct_destroy);
+	rcu_assign_pointer(ndpi_nf_ct_destroy,NULL);
+	rcu_read_unlock();
+#endif
 }
 #else
 static struct nf_ct_ext_type ndpi_extend = {
