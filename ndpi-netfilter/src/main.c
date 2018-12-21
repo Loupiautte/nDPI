@@ -124,6 +124,11 @@ static inline void *PDE_DATA(const struct inode *inode)
 #endif
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,0)
+#define nf_ct_l3proto_try_module_get(a) 0
+#define nf_ct_l3proto_module_put(a)
+#endif
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("G. Elian Gidoni <geg@gnu.org>, Vitaly E. Lavrov <vel21ripn@gmail.com>");
 MODULE_DESCRIPTION("nDPI wrapper");
@@ -869,6 +874,7 @@ ndpi_alloc_flow (struct nf_ct_ext_ndpi *ct_ndpi)
         return flow;
 }
 #ifndef NF_CT_CUSTOM
+
 static void (*ndpi_nf_ct_destroy)(struct nf_conntrack *) __rcu __read_mostly;
 
 static void ndpi_destroy_conntrack(struct nf_conntrack *nfct) {
@@ -967,7 +973,7 @@ ndpi_process_packet(struct ndpi_net *n, struct nf_conn * ct, struct nf_ct_ext_nd
 		    const uint64_t time,
                     const struct sk_buff *skb,int dir)
 {
-	ndpi_protocol proto = NDPI_PROTOCOL_NULL;
+    ndpi_protocol proto = NDPI_PROTOCOL_NULL;
 	struct ndpi_id_struct *src, *dst;
     struct ndpi_flow_struct * flow;
 	uint32_t low_ip, up_ip, tmp_ip;
@@ -1235,7 +1241,7 @@ return res;
 static bool
 ndpi_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
-	uint32_t r_proto;
+    uint32_t r_proto;
 	ndpi_protocol proto = NDPI_PROTOCOL_NULL;
 	uint64_t time;
 	const struct xt_ndpi_mtinfo *info = par->matchinfo;

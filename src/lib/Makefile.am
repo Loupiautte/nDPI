@@ -19,7 +19,8 @@ libndpi_la_include_HEADERS = ../include/ndpi_api.h \
 			     ../include/ndpi_protocol_ids.h \
 			     ../include/ndpi_protocols.h    \
 			     ../include/ndpi_typedefs.h     \
-			     third_party/include/libcache.h
+			     third_party/include/libcache.h \
+			     third_party/include/hash.h
 
 libndpi_la_SOURCES = ndpi_content_match.c.inc \
 		     ndpi_network_list.c.inc \
@@ -90,6 +91,7 @@ libndpi_la_SOURCES = ndpi_content_match.c.inc \
 		     protocols/maplestory.c \
 		     protocols/mdns.c \
 		     protocols/megaco.c \
+		     protocols/memcached.c \
 		     protocols/mgcp.c \
 		     protocols/mpegts.c \
 		     protocols/mqtt.c \
@@ -180,11 +182,13 @@ libndpi_la_SOURCES = ndpi_content_match.c.inc \
 		     third_party/include/sort.h \
 		     third_party/include/libcache.h \
 		     third_party/src/ahocorasick.c \
+		     third_party/src/hash.c \
 		     third_party/src/node.c \
 		     third_party/src/sort.c \
-		     third_party/src/libcache.c
+		     third_party/src/libcache.c \
+		     third_party/src/ndpi_patricia.c
 
-EXTRA_DIST = third_party/src/ndpi_patricia.c
+#EXTRA_DIST = third_party/src/ndpi_patricia.c
 
 PROTO_CFG_FILES = $(wildcard ndpi_network_list_*.yaml)
 
