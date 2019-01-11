@@ -983,6 +983,7 @@ ndpi_process_packet(struct ndpi_net *n, struct nf_conn * ct, struct nf_ct_ext_nd
     unsigned int ip_head_len = 0;
     unsigned int layer_4_head_len = 0;
 	u8 payload[4];
+    struct ndpi_packet_struct packet;
 #ifdef NDPI_DETECTION_SUPPORT_IPV6
 	const struct ipv6hdr *ip6h;
 
@@ -1048,7 +1049,44 @@ ndpi_process_packet(struct ndpi_net *n, struct nf_conn * ct, struct nf_ct_ext_nd
 #endif
 					(uint8_t *) iph, 
 					 skb->len, time, src, dst);
-//	printk(KERN_NOTICE "NDPI protocol : %d, %d\n", proto.master_protocol, proto.app_protocol);
+
+    if(iph->protocol == IPPROTO_UDP){
+
+        ip_head_len = (skb->data[0] & 0xf) * 4;
+        layer_4_head_len = ((skb->data[ip_head_len + 4] << 8 ) + skb->data[ip_head_len + 5]);
+        printk(KERN_NOTICE "LPI : Timestamp : %llu", time);
+        printk(KERN_NOTICE "LPI : Data len : %d", skb->len);
+        printk(KERN_NOTICE "LPI : IP header length %d ", ip_head_len);
+        printk(KERN_NOTICE "LPI : UDP header length %d ", layer_4_head_len);
+        if( layer_4_head_len > 12){
+
+            packet = flow->packet;
+            printk(KERN_NOTICE "LPI : Payload from flow : %02x ", (unsigned int)(* packet.payload));
+            printk(KERN_NOTICE "LPI : Payload : %x %x %x %x ",skb->data[ip_head_len + 8], skb->data[ip_head_len + 8 + 1], skb->data[ip_head_len + 8 + 2], skb->data[ip_head_len + 8 + 3]);
+            printk(KERN_NOTICE " ");
+        } else {
+            printk(KERN_NOTICE "LPI : Reassembled UDP");
+            printk(KERN_NOTICE " ");
+        }
+    }else if(iph->protocol == IPPROTO_TCP){
+
+//        ip_head_len = (skb->data[0] & 0xf) * 4;
+//        layer_4_head_len = ((skb->data[ip_head_len + 12] & 0xf0) >> 4) * 4;
+//
+//        if((ip_head_len + layer_4_head_len) < skb_headlen(skb) - 4){
+//            printk(KERN_NOTICE "LPI : Timestamp : %llu", time);
+//            printk(KERN_NOTICE "LPI : Data len : %d", skb->len);
+//            printk(KERN_NOTICE "LPI : IP header length %d ", ip_head_len);
+//            printk(KERN_NOTICE "LPI : TCP header length %d ", layer_4_head_len);
+//            packet = flow->packet;
+//            printk(KERN_NOTICE "LPI : Payload from flow : %02x", (unsigned int)(* packet.payload));
+//            printk(KERN_NOTICE "LPI : Payload : %x %x %x %x ",skb->data[ip_head_len + layer_4_head_len], skb->data[ip_head_len + layer_4_head_len + 1], skb->data[ip_head_len + layer_4_head_len + 2], skb->data[ip_head_len + layer_4_head_len + 3]);
+//            printk(KERN_NOTICE " ");
+//        } else {
+////            printk(KERN_NOTICE "LPI : Reassembled TCP");
+////            printk(KERN_NOTICE " ");
+//        }
+    }
 	if(proto.master_protocol == NDPI_PROTOCOL_UNKNOWN && 
 	          proto.app_protocol == NDPI_PROTOCOL_UNKNOWN ) {
 #ifdef NDPI_DETECTION_SUPPORT_IPV6
@@ -1067,50 +1105,6 @@ ndpi_process_packet(struct ndpi_net *n, struct nf_conn * ct, struct nf_ct_ext_nd
 	    if(protocol == IPPROTO_TCP || protocol == IPPROTO_UDP) {
             low_port = htons(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u.tcp.port);
             up_port  = htons(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u.tcp.port);
-
-//            payload = *(skb->data);
-//            printk(KERN_NOTICE "LPI : Payload : %x %x %x %x ",skb->data[0], skb->data[1], skb->data[2], skb->data[3]);
-
-//            printk(KERN_NOTICE "LPI : Data len : %d", skb->len);
-//            for(i = 0; i < skb_headlen(skb); i++){
-//                printk(KERN_NOTICE "LPI : %x", skb->data[i]);
-//            }
-//            printk(KERN_NOTICE "LPI : end of packet");
-
-            if(protocol == IPPROTO_TCP){
-//                printk(KERN_NOTICE "LPI : Protocol TCP, Payload : %x %x %x %x, Payload_length : %u, Timestamp : %llx, dir : %d", payload[0], payload[1], payload[2], payload[3], skb->len, skb->tstamp, dir);
-//                lpi_process_packet(protocol, payload, skb->len, dir);
-                printk(KERN_NOTICE "LPI : Data len : %d", skb->len);
-
-                ip_head_len = (skb->data[0] & 0xf) * 4;
-                printk(KERN_NOTICE "LPI : IP header length %d ", ip_head_len);
-
-                printk(KERN_NOTICE "LPI : TCP header length value %x ", skb->data[ip_head_len + 12]);
-                printk(KERN_NOTICE "LPI : TCP header length next value %x ", skb->data[ip_head_len + 13]);
-                layer_4_head_len = ((skb->data[ip_head_len + 12] & 0xf0) >> 4) * 4;
-                printk(KERN_NOTICE "LPI : TCP header length %d ", layer_4_head_len);
-                if((ip_head_len + layer_4_head_len) < skb_headlen(skb) - 4){
-                    printk(KERN_NOTICE "LPI : Payload : %x %x %x %x ",skb->data[ip_head_len + layer_4_head_len], skb->data[ip_head_len + layer_4_head_len + 1], skb->data[ip_head_len + layer_4_head_len + 2], skb->data[ip_head_len + layer_4_head_len + 3]);
-                    printk(KERN_NOTICE " ");
-                } else {
-                    printk(KERN_NOTICE "LPI : Reassembled TCP");
-                    printk(KERN_NOTICE " ");
-                }
-            } else {
-                printk(KERN_NOTICE "LPI : Data len : %d", skb->len);
-
-                ip_head_len = (skb->data[0] & 0xf) * 4;
-                printk(KERN_NOTICE "LPI : IP header length %d ", ip_head_len);
-                layer_4_head_len = (skb->data[ip_head_len] & 0xf) * 4;
-                printk(KERN_NOTICE "LPI : UDP header length %d ", layer_4_head_len);
-				if((ip_head_len + layer_4_head_len) < skb_headlen(skb) - 4){
-					printk(KERN_NOTICE "LPI : Payload : %x %x %x %x ",skb->data[ip_head_len + layer_4_head_len], skb->data[ip_head_len + layer_4_head_len + 1], skb->data[ip_head_len + layer_4_head_len + 2], skb->data[ip_head_len + layer_4_head_len + 3]);
-					printk(KERN_NOTICE " ");
-				} else {
-					printk(KERN_NOTICE "LPI : Reassembled UDP");
-					printk(KERN_NOTICE " ");
-				}
-            }
 	    }else {
 		    low_port = up_port = 0;
 	    }
