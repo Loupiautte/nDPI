@@ -623,14 +623,14 @@ typedef enum {
  * directly - lpi_update_data() will do that for you - but reading the values
  * should be ok. */
 typedef struct lpi {
-    uint32_t payload[2];
+    u32 payload[2];
     bool seen_syn[2];
-    uint32_t seqno[2];
-    uint32_t observed[2];
+    u32 seqno[2];
+    u32 observed[2];
     uint16_t server_port;
     uint16_t client_port;
     uint8_t trans_proto;
-    uint32_t payload_len[2];
+    u32 payload_len[2];
     uint32_t ips[2];
 } lpi_data_t;
 
@@ -657,10 +657,6 @@ typedef struct lpi_packet_t {
 
 } lpi_packet_t;
 
-//typedef struct libtrace_ip {
-//    uint32_t *ip_dst_s_addr;
-//    uint32_t *ip_src_s_addr;
-//} libtrace_ip_t;
 
 typedef struct lpi_thread {
     int index;
@@ -679,7 +675,7 @@ int lpi_init_library(void);
 /** Shuts down the LPI library, by de-registering all the protocol modules */
 void lpi_free_library(void);
 
-void lpi_process_packet(uint16_t trans_proto, u8 *payload, unsigned int payload_len, int dir);
+void lpi_process_packet(u8 payload_ori[4], u8 payload_reply[4], unsigned int data_len[2], unsigned short lpi_original_port_dst, unsigned short lpi_original_port_src, char is_TCP);
 
 /** Initialises an LPI data structure, setting all the members to appropriate
  *  starting values.
@@ -688,30 +684,6 @@ void lpi_process_packet(uint16_t trans_proto, u8 *payload, unsigned int payload_
  */
 void lpi_init_data(lpi_data_t *data);
 
-/** Updates the LPI data structure based on the contents of the packet
- *  provided.
- *
- *  @note The direction must be provided by the caller, as we cannot rely
- *  on trace_get_direction().
- *
- *  @param packet The packet to update the LPI data from.
- *  @param data	The LPI data structure to be updated.
- *  @param dir The direction of the packet - 0 is outgoing, 1 is incoming.
- *
- *  @return 0 if the packet was ignored, 1 if the LPI data was updated.
- */
-//int lpi_update_data(libtrace_packet_t *packet, lpi_data_t *data, uint8_t dir);
-
-/** Returns a unique string describing the provided protocol.
- *
- * This is essentially a protocol-to-string conversion function.
- *
- * @param proto The protocol that a string representation is required for.
- *
- * @return A pointer to a statically allocated string describing the protocol.
- * This is allocated on the stack, so should be used or copied immediately.
- */
-const char *lpi_print(lpi_protocol_t proto);
 
 /** Given a protocol, returns the category that it matches.
  *
@@ -742,32 +714,10 @@ const char *lpi_print_category(lpi_category_t category);
  *  LPI_UNKNOWN or LPI_UNKNOWN_UDP will be returned, depending on the transport
  *  protocol.
  */
-lpi_module_t *lpi_guess_protocol(lpi_data_t *data);
-
-/** Determines whether the protocol matching a given protocol number is no
- *  longer supported by libprotoident.
- *
- *  @param proto The protocol to check
- *
- *  @return true if the protocol is no longer supported, false otherwise.
- *
- *  Some protocols are no longer supported by libprotoident, either because
- *  the rules were found to be producing too many false positives or the 
- *  protocol has been merged with another existing protocol (especially in the
- *  case of mystery protocols). When these cases occur, we don't necessarily
- *  remove the protocol from the enumerated type list, just disable the module
- *  and set the name string for the protocol to "NULL".
- *
- *  This function allows the caller to check if a given protocol value has 
- *  been disabled. This is often handy when reporting stats for all the 
- *  protocol values (see lpi_live for an example), as ideally you would want
- *  to avoid reporting anything for the NULL protocols.
- */
-//bool lpi_is_protocol_inactive(lpi_protocol_t proto);
-
+lpi_module_t *guess_protocol(lpi_data_t *data, char is_TCP);
 
 /**
- *
+ * This should be use to allow the user to choose which protocols are block
  * @param file
  * @param __user
  * @return
@@ -775,7 +725,7 @@ lpi_module_t *lpi_guess_protocol(lpi_data_t *data);
 ssize_t lpi_proc_write(struct file *file, const char __user *ubuf, size_t count, loff_t *ppos);
 
 /**
- *
+ * This function print data of lpi on proc file. It is use to print protocols when help is call by user within userspace
  * @param file
  * @param __user
  * @return
@@ -783,7 +733,7 @@ ssize_t lpi_proc_write(struct file *file, const char __user *ubuf, size_t count,
 ssize_t lpi_proc_read(struct file *file, char __user *ubuf, size_t count, loff_t *ppos);
 
 /**
- *
+ * Create proc files to communicate with userspace
  * @param net
  * @return
  */

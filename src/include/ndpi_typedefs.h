@@ -1244,6 +1244,10 @@ struct ndpi_flow_struct {
   struct ndpi_flow_struct *flow;
   struct ndpi_id_struct *src;
   struct ndpi_id_struct *dst;
+
+  u_int8_t lpi_payload[4];
+  unsigned int lpi_data_len;
+  unsigned int lpi_packet_counter;
 };
 
 typedef struct {

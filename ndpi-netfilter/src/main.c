@@ -980,10 +980,16 @@ ndpi_process_packet(struct ndpi_net *n, struct nf_conn * ct, struct nf_ct_ext_nd
 	uint16_t low_port, up_port, tmp_port, protocol;
 	const struct iphdr *iph = NULL;
 
+	//LPI variables
     unsigned int ip_head_len = 0;
     unsigned int layer_4_head_len = 0;
-	u8 payload[4];
+	unsigned int data_len[2];
+	u8 payload_ori[4];
+	u8 payload_reply[4];
     struct ndpi_packet_struct packet;
+    unsigned short lpi_original_port_dst;
+    unsigned short lpi_original_port_src;
+
 #ifdef NDPI_DETECTION_SUPPORT_IPV6
 	const struct ipv6hdr *ip6h;
 
@@ -991,7 +997,6 @@ ndpi_process_packet(struct ndpi_net *n, struct nf_conn * ct, struct nf_ct_ext_nd
 	if(ip6h && ip6h->version != 6) ip6h = NULL;
 #endif
 	iph = ip_hdr(skb);
-
 
 	if(iph && iph->version != 4) iph = NULL;
 
@@ -1050,43 +1055,80 @@ ndpi_process_packet(struct ndpi_net *n, struct nf_conn * ct, struct nf_ct_ext_nd
 					(uint8_t *) iph, 
 					 skb->len, time, src, dst);
 
-    if(iph->protocol == IPPROTO_UDP){
-
-        ip_head_len = (skb->data[0] & 0xf) * 4;
-        layer_4_head_len = ((skb->data[ip_head_len + 4] << 8 ) + skb->data[ip_head_len + 5]);
-        printk(KERN_NOTICE "LPI : Timestamp : %llu", time);
-        printk(KERN_NOTICE "LPI : Data len : %d", skb->len);
-        printk(KERN_NOTICE "LPI : IP header length %d ", ip_head_len);
-        printk(KERN_NOTICE "LPI : UDP header length %d ", layer_4_head_len);
-        if( layer_4_head_len > 12){
-
+	if(iph->protocol == IPPROTO_UDP || iph->protocol == IPPROTO_TCP){
+	    flow->lpi_packet_counter++;
+		if((ct->status & IPS_SEEN_REPLY) && (flow->lpi_packet_counter == 2)){ // IPS_SEEN_REPLY <- go to elixir
+		    //Register payload, payload_len and port before calling lpi_process_packet
+            printk(KERN_NOTICE "LPI : Data len : %d", skb->len + skb->mac_len + 14);
             packet = flow->packet;
-            printk(KERN_NOTICE "LPI : Payload from flow : %02x ", (unsigned int)(* packet.payload));
-            printk(KERN_NOTICE "LPI : Payload : %x %x %x %x ",skb->data[ip_head_len + 8], skb->data[ip_head_len + 8 + 1], skb->data[ip_head_len + 8 + 2], skb->data[ip_head_len + 8 + 3]);
-            printk(KERN_NOTICE " ");
-        } else {
-            printk(KERN_NOTICE "LPI : Reassembled UDP");
-            printk(KERN_NOTICE " ");
-        }
-    }else if(iph->protocol == IPPROTO_TCP){
+			payload_ori[0] = flow->lpi_payload[0];
+			payload_ori[1] = flow->lpi_payload[1];
+			payload_ori[2] = flow->lpi_payload[2];
+			payload_ori[3] = flow->lpi_payload[3];
 
-//        ip_head_len = (skb->data[0] & 0xf) * 4;
-//        layer_4_head_len = ((skb->data[ip_head_len + 12] & 0xf0) >> 4) * 4;
-//
-//        if((ip_head_len + layer_4_head_len) < skb_headlen(skb) - 4){
-//            printk(KERN_NOTICE "LPI : Timestamp : %llu", time);
-//            printk(KERN_NOTICE "LPI : Data len : %d", skb->len);
-//            printk(KERN_NOTICE "LPI : IP header length %d ", ip_head_len);
-//            printk(KERN_NOTICE "LPI : TCP header length %d ", layer_4_head_len);
-//            packet = flow->packet;
-//            printk(KERN_NOTICE "LPI : Payload from flow : %02x", (unsigned int)(* packet.payload));
-//            printk(KERN_NOTICE "LPI : Payload : %x %x %x %x ",skb->data[ip_head_len + layer_4_head_len], skb->data[ip_head_len + layer_4_head_len + 1], skb->data[ip_head_len + layer_4_head_len + 2], skb->data[ip_head_len + layer_4_head_len + 3]);
-//            printk(KERN_NOTICE " ");
-//        } else {
-////            printk(KERN_NOTICE "LPI : Reassembled TCP");
-////            printk(KERN_NOTICE " ");
-//        }
-    }
+			lpi_original_port_src = htons(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u.tcp.port);
+			lpi_original_port_dst  = htons(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u.tcp.port);
+            if(iph->protocol == IPPROTO_UDP){
+				ip_head_len = (skb->data[0] & 0xf) * 4;
+				layer_4_head_len = 8;
+				data_len[0] = flow->lpi_data_len;
+				data_len[1] = skb->len + skb->mac_len - ip_head_len - layer_4_head_len;
+                if(data_len[1] < 4){
+                    payload_reply[0] = 0;
+                    payload_reply[1] = 0;
+                    payload_reply[2] = 0;
+                    payload_reply[3] = 0;
+                } else {
+                    payload_reply[0] = (unsigned int)(* packet.payload);
+                    payload_reply[1] = (unsigned int)(* (packet.payload + 1));
+                    payload_reply[2] = (unsigned int)(* (packet.payload + 2));
+                    payload_reply[3] = (unsigned int)(* (packet.payload + 3));
+                }
+                lpi_process_packet(payload_ori, payload_reply, data_len, lpi_original_port_dst, lpi_original_port_src, 0);
+            } else{
+				ip_head_len = (skb->data[0] & 0xf) * 4;
+				layer_4_head_len = ((skb->data[ip_head_len + 12] & 0xf0) >> 4 ) * 4;
+				data_len[0] = flow->lpi_data_len;
+				data_len[1] = skb->len + skb->mac_len - ip_head_len - layer_4_head_len;
+                if(data_len[1] < 4){
+                    payload_reply[0] = 0;
+                    payload_reply[1] = 0;
+                    payload_reply[2] = 0;
+                    payload_reply[3] = 0;
+                } else {
+                    payload_reply[0] = (unsigned int)(* packet.payload);
+                    payload_reply[1] = (unsigned int)(* (packet.payload + 1));
+                    payload_reply[2] = (unsigned int)(* (packet.payload + 2));
+                    payload_reply[3] = (unsigned int)(* (packet.payload + 3));
+                }
+            	lpi_process_packet(payload_ori, payload_reply, data_len, lpi_original_port_dst, lpi_original_port_src, 1);
+            }
+        } else if(!(ct->status & IPS_SEEN_REPLY) && (flow->lpi_packet_counter == 1)){
+            printk(KERN_NOTICE "LPI : Data len : %d", skb->len + skb->mac_len + 14);
+		    //Update payload and payload len for the first time we see a new flow
+			packet = flow->packet;
+            ip_head_len = (skb->data[0] & 0xf) * 4;
+            if(iph->protocol == IPPROTO_UDP){
+                layer_4_head_len = 8;
+            } else {
+                layer_4_head_len = ((skb->data[ip_head_len + 12] & 0xf0) >> 4 ) * 4;
+            }
+            flow->lpi_data_len = skb->len + skb->mac_len - ip_head_len - layer_4_head_len;
+            if(flow->lpi_data_len < 4){
+                flow->lpi_payload[0] = 0;
+                flow->lpi_payload[1] = 0;
+                flow->lpi_payload[2] = 0;
+                flow->lpi_payload[3] = 0;
+            }else {
+                flow->lpi_payload[0] = (unsigned int)(* packet.payload);
+                flow->lpi_payload[1] = (unsigned int)(* (packet.payload + 1));
+                flow->lpi_payload[2] = (unsigned int)(* (packet.payload + 2));
+                flow->lpi_payload[3] = (unsigned int)(* (packet.payload + 3));
+            }
+        	printk(KERN_NOTICE " ");
+		}
+	}
+
 	if(proto.master_protocol == NDPI_PROTOCOL_UNKNOWN && 
 	          proto.app_protocol == NDPI_PROTOCOL_UNKNOWN ) {
 #ifdef NDPI_DETECTION_SUPPORT_IPV6
@@ -1233,7 +1275,7 @@ return res;
 #define pack_proto(proto) ((proto.app_protocol << 16) | proto.master_protocol)
 
 static bool
-ndpi_mt(const struct sk_buff *skb, struct xt_action_param *par)
+	ndpi_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
     uint32_t r_proto;
 	ndpi_protocol proto = NDPI_PROTOCOL_NULL;
@@ -1257,230 +1299,229 @@ ndpi_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	c_proto = (void *)&skb->cb[sizeof(skb->cb)-sizeof(struct ndpi_cb)];
 
     do {
-	if(c_proto->data[0] == NDPI_ID &&
-	   c_proto->data[1] == NDPI_PROCESS_ERROR) {
-		break;
-	}
-	if(!can_handle(skb,&l4_proto)) {
-		proto.app_protocol = NDPI_PROTOCOL_UNKNOWN;
-		break;
-	}
-	if( skb->len > ndpi_mtu && skb_is_nonlinear(skb) ) {
-		COUNTER(ndpi_jumbo);
-		break;
-	}
+		if(c_proto->data[0] == NDPI_ID &&
+		   c_proto->data[1] == NDPI_PROCESS_ERROR) {
+			break;
+		}
+		if(!can_handle(skb,&l4_proto)) {
+			proto.app_protocol = NDPI_PROTOCOL_UNKNOWN;
+			break;
+		}
+		if( skb->len > ndpi_mtu && skb_is_nonlinear(skb) ) {
+			COUNTER(ndpi_jumbo);
+			break;
+		}
+		COUNTER(ndpi_pk);
 
-	COUNTER(ndpi_pk);
-
-	ct = nf_ct_get (skb, &ctinfo);
-	if (ct == NULL) {
-		COUNTER(ndpi_p31);
-		if(ndpi_log_debug > 2)
-			printk("nf_ct_get(%p) NULL\n",(void *)skb);
-		break;
-	}
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,12,0)
-	if (nf_ct_is_untracked(ct))
-#else
-	if(ctinfo == IP_CT_UNTRACKED)	
-#endif
-	{
-		COUNTER(ndpi_p31);
-		break;
-	}
-
-#ifdef NF_CT_CUSTOM
-	ct_ndpi = nf_ct_ext_find_ndpi(ct);
-	if(!ct_ndpi) {
-		if(nf_ct_is_confirmed(ct)) {
+		ct = nf_ct_get (skb, &ctinfo);
+		if (ct == NULL) {
+			COUNTER(ndpi_p31);
+			if(ndpi_log_debug > 2)
+				printk("nf_ct_get(%p) NULL\n",(void *)skb);
+			break;
+		}
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(4,12,0)
+		if (nf_ct_is_untracked(ct))
+	#else
+		if(ctinfo == IP_CT_UNTRACKED)
+	#endif
+		{
 			COUNTER(ndpi_p31);
 			break;
 		}
-		ct_ndpi = nf_ct_ext_add_ndpi(ct);
-		if(ndpi_log_debug > 2)
-			printk("Create  ct_ndpi %p ct %p %s\n",
-					(void *)ct_ndpi, (void *)ct,
-					ct_info(ct,ct_buf,sizeof(ct_buf)));
-		if(ct_ndpi) {
-			ndpi_init_ct_struct(ct_ndpi,l4_proto);
-		} else {
-			COUNTER(ndpi_p34);
-			break;
-		}
-	} else
-	    if(ndpi_log_debug > 2)
-		printk("Reuse   ct_ndpi %p ct %p %s\n",
-				(void *)ct_ndpi, (void *)ct,
-				ct_info(ct,ct_buf,sizeof(ct_buf)));
-#else
-	{
-	    struct nf_ct_ext_labels *ct_label = nf_ct_ext_find_label(ct);
-	    if(ct_label) {
-		if(!ct_label->magic) {
-			ct_ndpi = (struct nf_ct_ext_ndpi *)malloc_wrapper(sizeof(struct nf_ct_ext_ndpi));
-			if(ct_ndpi) {
-				ct_label->magic = MAGIC_CT;
-				ct_label->ndpi_ext = ct_ndpi;
-				ndpi_init_ct_struct(ct_ndpi,l4_proto);
-				if(ndpi_log_debug > 2)
-					printk("Create  ct_ndpi %p ct %p %s\n",
-						(void *)ct_ndpi, (void *)ct, ct_info(ct,ct_buf,sizeof(ct_buf)));
-			}
-		} else {
-			if(ct_label->magic == MAGIC_CT) {
-				ct_ndpi = ct_label->ndpi_ext;
-				if(ndpi_log_debug > 2)
-					printk("Reuse   ct_ndpi %p ct %p %s\n",
-						(void *)ct_ndpi, (void *)ct, ct_info(ct,ct_buf,sizeof(ct_buf)));
-			  } else
-				COUNTER(ndpi_p34);
-		}
-	    } else 
-		COUNTER(ndpi_p31);
-	}
-#endif
-	if(!ct_ndpi)
-		break;
 
-	proto.app_protocol = NDPI_PROTOCOL_UNKNOWN;
-	if(ndpi_log_debug > 3)
-		packet_trace(skb,ct,"Start      ");
-
-	spin_lock_bh (&ct_ndpi->lock);
-
-
-	if( c_proto->data[0] == NDPI_ID ) {
-	    if(c_proto->last_ct == ct) {
-		proto = ct_ndpi->proto;
-		if(info->hostname[0])
-			host_match = ndpi_host_match(info,ct_ndpi);
-
-		spin_unlock_bh (&ct_ndpi->lock);
-		COUNTER(ndpi_pi);
-		if(ndpi_log_debug > 1)
-		    packet_trace(skb,ct,"cache      ");
-		break;
-	    }
-	    if(c_proto->last_ct != ct)
-		    	COUNTER(ndpi_pi3);
-	} else
-		COUNTER(ndpi_pi4);
-
-	/* don't pass icmp for TCP/UDP to ndpi_process_packet()  */
-	if(l4_proto == IPPROTO_ICMP && ct_ndpi->l4_proto != IPPROTO_ICMP) {
-		proto.master_protocol = NDPI_PROTOCOL_IP_ICMP;
-		proto.app_protocol = NDPI_PROTOCOL_IP_ICMP;
-		spin_unlock_bh (&ct_ndpi->lock);
-		COUNTER(ndpi_pj);
-		ndpi_pjc += skb->len;
-		break;
-	}
-#ifdef NDPI_DETECTION_SUPPORT_IPV6
-	if(l4_proto == IPPROTO_ICMPV6 && ct_ndpi->l4_proto != IPPROTO_ICMPV6) {
-		proto.master_protocol = NDPI_PROTOCOL_IP_ICMPV6;
-		proto.app_protocol = NDPI_PROTOCOL_IP_ICMPV6;
-		spin_unlock_bh (&ct_ndpi->lock);
-		COUNTER(ndpi_pj);
-		ndpi_pjc += skb->len;
-		break;
-	}
-#endif
-	if(ct_ndpi->detect_done) {
-		proto = ct_ndpi->proto;
-		c_proto->data[0] = NDPI_ID;
-		c_proto->data[1] = pack_proto(proto);
-		c_proto->last_ct = ct;
-
-		if(info->hostname[0])
-			host_match = ndpi_host_match(info,ct_ndpi);
-
-		spin_unlock_bh (&ct_ndpi->lock);
-		if(ndpi_log_debug > 1)
-			packet_trace(skb,ct,"detect_done ");
-		break;
-	}
-	if(ct_ndpi->proto.app_protocol == NDPI_PROTOCOL_UNKNOWN ||
-	    ct_ndpi->flow) {
-		struct ndpi_net *n;
-
-		if (skb_is_nonlinear(skb)) {
-			linearized_skb = skb_copy(skb, GFP_ATOMIC);
-			if (linearized_skb == NULL) {
-				spin_unlock_bh (&ct_ndpi->lock);
-				COUNTER(ndpi_falloc);
-				proto.app_protocol = NDPI_PROCESS_ERROR;
+	#ifdef NF_CT_CUSTOM
+		ct_ndpi = nf_ct_ext_find_ndpi(ct);
+		if(!ct_ndpi) {
+			if(nf_ct_is_confirmed(ct)) {
+				COUNTER(ndpi_p31);
 				break;
 			}
-			skb_use = linearized_skb;
-			ndpi_nskb += 1;
-		} else {
-			skb_use = skb;
-			ndpi_lskb += 1;
-		}
-
-		getnstimeofday(&tm);
-		time = ((uint64_t) tm.tv_sec) * detection_tick_resolution +
-			(uint32_t)tm.tv_nsec / (1000000000ul / detection_tick_resolution);
-
-		n = ndpi_pernet(nf_ct_net(ct));
-		r_proto = ndpi_process_packet(n, ct,
-				ct_ndpi, time, skb_use,
-				CTINFO2DIR(ctinfo) != IP_CT_DIR_ORIGINAL);
-
-		c_proto->data[0] = NDPI_ID;
-		c_proto->data[1] = r_proto;
-		c_proto->last_ct = ct;
-		COUNTER(ndpi_pd);
-
-
-		if(r_proto == NDPI_PROCESS_ERROR) {
-			// special case for errors
-			COUNTER(ndpi_pe);
-			c_proto->data[1] = r_proto;
-			proto.app_protocol = r_proto;
-			proto.master_protocol = NDPI_PROTOCOL_UNKNOWN;
-			if(ct_ndpi->proto.app_protocol == NDPI_PROTOCOL_UNKNOWN) {
-				ct_ndpi->proto.app_protocol = r_proto;
+			ct_ndpi = nf_ct_ext_add_ndpi(ct);
+			if(ndpi_log_debug > 2)
+				printk("Create  ct_ndpi %p ct %p %s\n",
+						(void *)ct_ndpi, (void *)ct,
+						ct_info(ct,ct_buf,sizeof(ct_buf)));
+			if(ct_ndpi) {
+				ndpi_init_ct_struct(ct_ndpi,l4_proto);
+			} else {
+				COUNTER(ndpi_p34);
+				break;
 			}
-		} else {
+		} else
+			if(ndpi_log_debug > 2)
+			printk("Reuse   ct_ndpi %p ct %p %s\n",
+					(void *)ct_ndpi, (void *)ct,
+					ct_info(ct,ct_buf,sizeof(ct_buf)));
+	#else
+		{
+			struct nf_ct_ext_labels *ct_label = nf_ct_ext_find_label(ct);
+			if(ct_label) {
+			if(!ct_label->magic) {
+				ct_ndpi = (struct nf_ct_ext_ndpi *)malloc_wrapper(sizeof(struct nf_ct_ext_ndpi));
+				if(ct_ndpi) {
+					ct_label->magic = MAGIC_CT;
+					ct_label->ndpi_ext = ct_ndpi;
+					ndpi_init_ct_struct(ct_ndpi,l4_proto);
+					if(ndpi_log_debug > 2)
+						printk("Create  ct_ndpi %p ct %p %s\n",
+							(void *)ct_ndpi, (void *)ct, ct_info(ct,ct_buf,sizeof(ct_buf)));
+				}
+			} else {
+				if(ct_label->magic == MAGIC_CT) {
+					ct_ndpi = ct_label->ndpi_ext;
+					if(ndpi_log_debug > 2)
+						printk("Reuse   ct_ndpi %p ct %p %s\n",
+							(void *)ct_ndpi, (void *)ct, ct_info(ct,ct_buf,sizeof(ct_buf)));
+				  } else
+					COUNTER(ndpi_p34);
+			}
+			} else
+			COUNTER(ndpi_p31);
+		}
+	#endif
+		if(!ct_ndpi)
+			break;
+
+		proto.app_protocol = NDPI_PROTOCOL_UNKNOWN;
+		if(ndpi_log_debug > 3)
+			packet_trace(skb,ct,"Start      ");
+
+		spin_lock_bh (&ct_ndpi->lock);
+
+
+		if( c_proto->data[0] == NDPI_ID ) {
+			if(c_proto->last_ct == ct) {
+				proto = ct_ndpi->proto;
+				if(info->hostname[0])
+					host_match = ndpi_host_match(info,ct_ndpi);
+
+				spin_unlock_bh (&ct_ndpi->lock);
+				COUNTER(ndpi_pi);
+				if(ndpi_log_debug > 1)
+					packet_trace(skb,ct,"cache      ");
+				break;
+			}
+			if(c_proto->last_ct != ct)
+					COUNTER(ndpi_pi3);
+		} else
+			COUNTER(ndpi_pi4);
+
+		/* don't pass icmp for TCP/UDP to ndpi_process_packet()  */
+		if(l4_proto == IPPROTO_ICMP && ct_ndpi->l4_proto != IPPROTO_ICMP) {
+			proto.master_protocol = NDPI_PROTOCOL_IP_ICMP;
+			proto.app_protocol = NDPI_PROTOCOL_IP_ICMP;
+			spin_unlock_bh (&ct_ndpi->lock);
+			COUNTER(ndpi_pj);
+			ndpi_pjc += skb->len;
+			break;
+		}
+	#ifdef NDPI_DETECTION_SUPPORT_IPV6
+		if(l4_proto == IPPROTO_ICMPV6 && ct_ndpi->l4_proto != IPPROTO_ICMPV6) {
+			proto.master_protocol = NDPI_PROTOCOL_IP_ICMPV6;
+			proto.app_protocol = NDPI_PROTOCOL_IP_ICMPV6;
+			spin_unlock_bh (&ct_ndpi->lock);
+			COUNTER(ndpi_pj);
+			ndpi_pjc += skb->len;
+			break;
+		}
+	#endif
+		if(ct_ndpi->detect_done) {
+			proto = ct_ndpi->proto;
+			c_proto->data[0] = NDPI_ID;
+			c_proto->data[1] = pack_proto(proto);
+			c_proto->last_ct = ct;
+
 			if(info->hostname[0])
 				host_match = ndpi_host_match(info,ct_ndpi);
-			if(r_proto != NDPI_PROTOCOL_UNKNOWN) {
-				proto = ct_ndpi->proto;
-				c_proto->data[1] = pack_proto(proto);
-				if(proto.app_protocol != NDPI_PROTOCOL_UNKNOWN)
-					atomic_inc(&n->protocols_cnt[proto.app_protocol]);
-				if(proto.master_protocol != NDPI_PROTOCOL_UNKNOWN)
-					atomic_inc(&n->protocols_cnt[proto.master_protocol]);
-			} else { // unknown
-				if(ct_ndpi->proto.app_protocol != NDPI_PROTOCOL_UNKNOWN &&
-				   ct_ndpi->flow->no_cache_protocol) { // restore proto
+
+			spin_unlock_bh (&ct_ndpi->lock);
+			if(ndpi_log_debug > 1)
+				packet_trace(skb,ct,"detect_done ");
+			break;
+		}
+		if(ct_ndpi->proto.app_protocol == NDPI_PROTOCOL_UNKNOWN ||
+			ct_ndpi->flow) {
+			struct ndpi_net *n;
+			if (skb_is_nonlinear(skb)) {
+				linearized_skb = skb_copy(skb, GFP_ATOMIC);
+				if (linearized_skb == NULL) {
+					spin_unlock_bh (&ct_ndpi->lock);
+					COUNTER(ndpi_falloc);
+					proto.app_protocol = NDPI_PROCESS_ERROR;
+					break;
+				}
+				skb_use = linearized_skb;
+				ndpi_nskb += 1;
+				printk(KERN_NOTICE "LPI : Packet wasn't linear");
+			} else {
+				skb_use = skb;
+				ndpi_lskb += 1;
+			}
+
+			getnstimeofday(&tm);
+			time = ((uint64_t) tm.tv_sec) * detection_tick_resolution +
+				(uint32_t)tm.tv_nsec / (1000000000ul / detection_tick_resolution);
+
+			n = ndpi_pernet(nf_ct_net(ct));
+			r_proto = ndpi_process_packet(n, ct,
+					ct_ndpi, time, skb_use,
+					CTINFO2DIR(ctinfo) != IP_CT_DIR_ORIGINAL);
+
+			c_proto->data[0] = NDPI_ID;
+			c_proto->data[1] = r_proto;
+			c_proto->last_ct = ct;
+			COUNTER(ndpi_pd);
+
+
+			if(r_proto == NDPI_PROCESS_ERROR) {
+				// special case for errors
+				COUNTER(ndpi_pe);
+				c_proto->data[1] = r_proto;
+				proto.app_protocol = r_proto;
+				proto.master_protocol = NDPI_PROTOCOL_UNKNOWN;
+				if(ct_ndpi->proto.app_protocol == NDPI_PROTOCOL_UNKNOWN) {
+					ct_ndpi->proto.app_protocol = r_proto;
+				}
+			} else {
+				if(info->hostname[0])
+					host_match = ndpi_host_match(info,ct_ndpi);
+				if(r_proto != NDPI_PROTOCOL_UNKNOWN) {
 					proto = ct_ndpi->proto;
 					c_proto->data[1] = pack_proto(proto);
-				} else {
-					switch(ct_ndpi->l4_proto) {
-					  case IPPROTO_TCP:
-						  if(ct_ndpi->flow->packet_counter > max_packet_unk_tcp)
-							  ct_ndpi->detect_done = 1;
-						  break;
-					  case IPPROTO_UDP:
-						  if(ct_ndpi->flow->packet_counter > max_packet_unk_udp)
-							  ct_ndpi->detect_done = 1;
-						  break;
-					  default:
-						  if(ct_ndpi->flow->packet_counter > max_packet_unk_other)
-							  ct_ndpi->detect_done = 1;
+					if(proto.app_protocol != NDPI_PROTOCOL_UNKNOWN)
+						atomic_inc(&n->protocols_cnt[proto.app_protocol]);
+					if(proto.master_protocol != NDPI_PROTOCOL_UNKNOWN)
+						atomic_inc(&n->protocols_cnt[proto.master_protocol]);
+				} else { // unknown
+					if(ct_ndpi->proto.app_protocol != NDPI_PROTOCOL_UNKNOWN &&
+					   ct_ndpi->flow->no_cache_protocol) { // restore proto
+						proto = ct_ndpi->proto;
+						c_proto->data[1] = pack_proto(proto);
+					} else {
+						switch(ct_ndpi->l4_proto) {
+						  case IPPROTO_TCP:
+							  if(ct_ndpi->flow->packet_counter > max_packet_unk_tcp)
+								  ct_ndpi->detect_done = 1;
+							  break;
+						  case IPPROTO_UDP:
+							  if(ct_ndpi->flow->packet_counter > max_packet_unk_udp)
+								  ct_ndpi->detect_done = 1;
+							  break;
+						  default:
+							  if(ct_ndpi->flow->packet_counter > max_packet_unk_other)
+								  ct_ndpi->detect_done = 1;
+						}
+						if(ct_ndpi->detect_done && ct_ndpi->flow)
+							__ndpi_free_ct_flow(ct_ndpi);
 					}
-					if(ct_ndpi->detect_done && ct_ndpi->flow)
-						__ndpi_free_ct_flow(ct_ndpi);
 				}
 			}
-		}
-		spin_unlock_bh (&ct_ndpi->lock);
+			spin_unlock_bh (&ct_ndpi->lock);
 
-		if(linearized_skb != NULL)
-			kfree_skb(linearized_skb);
-	}
+			if(linearized_skb != NULL)
+				kfree_skb(linearized_skb);
+		}
     } while(0);
 
     if (info->error)
@@ -1751,7 +1792,7 @@ static struct xt_target ndpi_tg_reg __read_mostly = {
 	.checkentry	= ndpi_tg_check,
 	.destroy	= ndpi_tg_destroy,
         .targetsize     = sizeof(struct xt_ndpi_tginfo),
-        .me             = THIS_MODULE,
+        .me             = THIS_MODULE, //If hooks is not set, it is initialized to 0 by default, which implies that this target can be used in all chains
 };
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 static void bt_port_gc(struct timer_list *t) {

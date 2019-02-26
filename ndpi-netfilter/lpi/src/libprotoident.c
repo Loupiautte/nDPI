@@ -42,6 +42,7 @@
 #include <linux/list.h>
 #include <linux/uaccess.h>
 
+
 static struct proc_dir_entry *pde_lpi;
 static char dir_name[]="xt_lpi";
 static char proto_lpi_name[]="proto_lpi";
@@ -151,24 +152,35 @@ void lpi_free_library() {
     init_called = false;
 }
 
-void lpi_process_packet(uint16_t trans_proto, u8 *payload, unsigned int payload_len, int dir) {
-    static lpi_data_t data;
+void lpi_process_packet(u8 payload_ori[4], u8 payload_reply[4], unsigned int data_len[2], unsigned short lpi_original_port_dst, unsigned short lpi_original_port_src, char is_TCP) {
+    lpi_data_t data;
+    lpi_module_t *proto = NULL;
+    LPIModuleMap m_it;
 
     lpi_init_data(&data);
 
-    printk(KERN_NOTICE "LPI : dir : %d, trans_proto : %u, payload : %x, payload_len : %lu", dir, trans_proto, (int)payload & 0xffff , payload_len);
+    printk(KERN_NOTICE "LPI : Payload original :  %02x %02x %02x %02x", payload_ori[0], payload_ori[1], payload_ori[2], payload_ori[3]);
+    printk(KERN_NOTICE "LPI : Payload reply :  %02x %02x %02x %02x", payload_reply[0], payload_reply[1], payload_reply[2], payload_reply[3]);
+    printk(KERN_NOTICE "LPI : Data len original : %d", data_len[0]);
+    printk(KERN_NOTICE "LPI : Data len reply : %d", data_len[1]);
+//    printk(KERN_NOTICE "LPI : Port source : %hu", lpi_original_port_src);
+//    printk(KERN_NOTICE "LPI : Port dest : %hu", lpi_original_port_dst);
 
-    /*
-    if(dir){
-        data.trans_proto = trans_proto;
-        data.payload[0] = payload;
-        data.payload_len[0] = payload_len;
-    }else{
-        data.trans_proto = trans_proto;
-        data.payload[1] = payload;
-        data.payload_len[1] = payload_len;
+    data.payload[0] = ((payload_ori[0] & 0xff) << 24) | ((payload_ori[1] & 0xff) << 16) | ((payload_ori[2] & 0xff) << 8) | (payload_ori[3] & 0xff);
+    data.payload[1] =  ((payload_reply[0] & 0xff) << 24) | ((payload_reply[1] & 0xff) << 16) | ((payload_reply[2] & 0xff) << 8) | (payload_reply[3] & 0xff);
+    data.payload_len[0] = data_len[0];
+    data.payload_len[1] = data_len[1];
+    data.client_port = lpi_original_port_src;
+    data.server_port = lpi_original_port_dst;
+
+
+    proto = guess_protocol(&data, is_TCP);
+    if(is_TCP){
+        printk(KERN_NOTICE "LPI : Found TCP : %s", proto->name);
+    } else {
+        printk(KERN_NOTICE "LPI : Found UDP : %s", proto->name);
     }
-    */
+    printk(KERN_NOTICE " ");
 }
 
 void lpi_init_data(lpi_data_t *data) {
@@ -191,355 +203,55 @@ void lpi_init_data(lpi_data_t *data) {
 
 }
 
-//static int update_tcp_flow(lpi_data_t *data, libtrace_tcp_t *tcp, uint8_t dir,
-//                           uint32_t rem, uint32_t psize) {
-//    uint32_t seq = 0;
-//
-//    if (rem < sizeof(libtrace_tcp_t))
-//        return 0;
-//    if (tcp->rst)
-//        return 1;
-//
-//    if (data->server_port == 0) {
-//        data->server_port = ntohs(tcp->dest);
-//        data->client_port = ntohs(tcp->source);
-//    }
-//
-//    seq = ntohl(tcp->seq);
-//
-//    if (tcp->syn && data->payload_len[dir] == 0) {
-//        data->seqno[dir] = seq + 1;
-//        data->seen_syn[dir] = true;
-//    }
-//
-//    /* Ok, we've got some payload but we never saw the SYN for this
-//     * direction. What do we do?
-//     *
-//     * Current idea: just assume this is the first payload bearing
-//     * packet. Better than running around with an uninitialised seqno */
-//    if (data->seen_syn[dir] == false && psize > 0) {
-//        data->seqno[dir] = seq;
-//        data->seen_syn[dir] = true;
-//    }
-//
-//    if (seq_cmp(seq, data->seqno[dir]) != 0)
-//        return 0;
-//    //data->seqno[dir] = seq;
-//
-//    return 1;
-//}
-
-//static int update_udp_flow(lpi_data_t *data, libtrace_udp_t *udp,
-//                           uint32_t rem) {
-//
-//    if (rem < sizeof(libtrace_udp_t))
-//        return 0;
-//
-//    if (data->server_port == 0) {
-//        data->server_port = ntohs(udp->dest);
-//        data->client_port = ntohs(udp->source);
-//    }
-//
-//    return 1;
-//}
-
-int lpi_update_data(void *packet, lpi_data_t *data, uint8_t dir) {
-
-//    char *payload = NULL;
-//    uint32_t psize = 0;
-//    uint32_t rem = 0;
-//    uint8_t proto = 0;
-//    void *transport;
-//    uint32_t four_bytes;
-//    libtrace_ip_t *ip = NULL;
-
-//    psize = trace_get_payload_length(packet);
-//
-//    /* Don't bother if we've observed 32k of data - the first packet must
-//     * surely been within that. This helps us avoid issues with sequence
-//     * number wrapping when doing the reordering check below */
-//    if (data->observed[dir] > 32 * 1024)
-//        return 0;
-//
-//    data->observed[dir] += psize;
-//
-//    /* If we're TCP, we have to wait to check that we haven't been
-//     * reordered */
-//    if (data->trans_proto != 6 && data->payload_len[dir] != 0)
-//        return 0;
-//
-//    transport = trace_get_transport(packet, &proto, &rem);
-//    if (data->trans_proto == 0)
-//        data->trans_proto = proto;
-//
-//    if (transport == NULL || rem == 0)
-//        return 0;
-//
-//    if (proto == 6) {
-//        if (update_tcp_flow(data, (libtrace_tcp_t *) transport, dir, rem, psize) == 0)
-//            return 0;
-//        payload = (char *) trace_get_payload_from_tcp(
-//                (libtrace_tcp_t *) transport, &rem);
-//    }
-//
-//    if (proto == 17) {
-//        if (update_udp_flow(data, (libtrace_udp_t *) transport, rem) == 0)
-//            return 0;
-//        payload = (char *) trace_get_payload_from_udp(
-//                (libtrace_udp_t *) transport, &rem);
-//    }
-//
-//    ip = trace_get_ip(packet);
-//
-//    if (payload == NULL)
-//        return 0;
-//    if (psize <= 0)
-//        return 0;
-//
-//    four_bytes = (*(uint32_t *) payload);
-//
-//    if (psize < 4) {
-//        four_bytes = (ntohl(four_bytes)) >> (8 * (4 - psize));
-//        four_bytes = htonl(four_bytes << (8 * (4 - psize)));
-//    }
-//
-//    data->payload[dir] = four_bytes;
-//    data->payload_len[dir] = psize;
-//
-//    if (ip != NULL && data->ips[0] == 0) {
-//        if (dir == 0) {
-//            data->ips[0] = ip->ip_src_s_addr;
-//            data->ips[1] = ip->ip_dst_s_addr;
-//        } else {
-//            data->ips[1] = ip->ip_src_s_addr;
-//            data->ips[0] = ip->ip_dst_s_addr;
-//        }
-//    }
-//
-//    return 1;
 
 
+static lpi_module_t *test_protocol_list(LPIModuleList *ml, lpi_data_t *data) {
 
+    LPIModuleList *l_it;
 
-//    char *payload = NULL;
-//    uint32_t psize = 0;
-//    uint32_t rem = 0;
-//    uint8_t proto = 0;
-//    void *transport;
-//    uint32_t four_bytes;
-//    libtrace_ip_t *ip = NULL;
-
-//    //tcp = trace_get_tcp(packet);
-//    psize = trace_get_payload_length(packet);
-//
-//    /* Don't bother if we've observed 32k of data - the first packet must
-//     * surely been within that. This helps us avoid issues with sequence
-//     * number wrapping when doing the reordering check below */
-//    if (data->observed[dir] > 32 * 1024)
-//        return 0;
-//
-//    data->observed[dir] += psize;
-//
-//    /* If we're TCP, we have to wait to check that we haven't been
-//     * reordered */
-//    if (data->trans_proto != 6 && data->payload_len[dir] != 0)
-//        return 0;
-//
-//    transport = trace_get_transport(packet, &proto, &rem);
-//    if (data->trans_proto == 0)
-//        data->trans_proto = proto;
-//
-//    if (transport == NULL || rem == 0)
-//        return 0;
-//
-//    if (proto == 6) {
-//        if (update_tcp_flow(data, (libtrace_tcp_t *) transport, dir, rem, psize) == 0)
-//            return 0;
-//        payload = (char *) trace_get_payload_from_tcp(
-//                (libtrace_tcp_t *) transport, &rem);
-//    }
-//
-//    if (proto == 17) {
-//        if (update_udp_flow(data, (libtrace_udp_t *) transport, rem) == 0)
-//            return 0;
-//        payload = (char *) trace_get_payload_from_udp(
-//                (libtrace_udp_t *) transport, &rem);
-//    }
-//
-//    ip = trace_get_ip(packet);
-//
-//    if (payload == NULL)
-//        return 0;
-//    if (psize <= 0)
-//        return 0;
-//
-//    four_bytes = (*(uint32_t *) payload);
-//
-//    if (psize < 4) {
-//        four_bytes = (ntohl(four_bytes)) >> (8 * (4 - psize));
-//        four_bytes = htonl(four_bytes << (8 * (4 - psize)));
-//    }
-//
-//    data->payload[dir] = four_bytes;
-//    data->payload_len[dir] = psize;
-//
-//    if (ip != NULL && data->ips[0] == 0) {
-//        if (dir == 0) {
-//            data->ips[0] = ip->ip_src_s_addr;
-//            data->ips[1] = ip->ip_dst_s_addr;
-//        } else {
-//            data->ips[1] = ip->ip_src_s_addr;
-//            data->ips[0] = ip->ip_dst_s_addr;
-//        }
-//    }
-//
-//    return 1;
-//
-}
-
-//static lpi_module_t *test_protocol_list(LPIModuleList *ml, lpi_data_t *data) {
-//    printk(KERN_DEBUG
-//    "Begin function : lpi_module_t");
-//
-//    LPIModuleList l_it;
-//
-//    list_for_each_entry(l_it, ml->list, list)
-//    {
-//        //access the member from l_it
-//        lpi_module_t *module = &(l_it.lpi_module1);
-//        if (module->lpi_callback(data, module)) {
-//            printk(KERN_DEBUG
-//            "End function : lpi_module_t");
-//            return module;
-//        }
-//    }
-//
-//    printk(KERN_DEBUG
-//    "End function : lpi_module_t");
-//    return NULL;
-
-    //TODO Check
-    //	LPIModuleList::iterator l_it;
-    /* Turns out naively looping through the modules is quicker
-     * than trying to do intelligent stuff with threads. Most
-     * callbacks complete very quickly so threading overhead is a
-     * major problem
-
-    for (l_it = ml->begin(); l_it != ml->end(); l_it++) {
-        lpi_module_t *module = *l_it;
-
-        /* To save time, I'm going to break on the first successful
-         * match. A threaded version would wait for all the modules
-         * to run, storing all successful results in a list of some
-         * sort and selecting an appropriate result from there.
-
-
-        if (module->lpi_callback(data, module))
+    list_for_each_entry(l_it, &ml->list, list)
+    {
+        //access the member from l_it
+        lpi_module_t *module = &(l_it->lpi_module1);
+        if (module->lpi_callback(data, module)) {
             return module;
-
+        }
     }
 
-    return NULL; */
-//}
+    return NULL;
+}
 
-//static lpi_module_t *guess_protocol(LPIModuleMap *modmap, lpi_data_t *data) {
-//    printk(KERN_DEBUG
-//    "Beging function : guess protocol");
-//    lpi_module_t *proto = NULL;
-//
-//    LPIModuleMap m_it;
-//
-//    list_for_each_entry(m_it, ml->list, list)
-//    {
-//        LPIModuleList *ml = m_it->lpiModuleList;
-//
-//        proto = test_protocol_list(ml, data);
-//
-//        if (proto != NULL)
-//            break;
-//    }
-//    printk(KERN_DEBUG
-//    "End function : guess_protocol");
-//    return proto;
-    //TODO Check
+lpi_module_t *guess_protocol(lpi_data_t *data, char is_TCP) {
+    lpi_module_t *proto = NULL;
 
+    LPIModuleMap *m_it;
+    if(is_TCP){
+        list_for_each_entry(m_it, &TCP_protocols.list, list)
+        {
+            LPIModuleList *ml = m_it->lpiModuleList;
 
-//    lpi_module_t *proto = NULL;
-//
-//    LPIModuleMap::iterator m_it;
-//
-//    /* Deal with each priority in turn - want to match higher priority
-//     * rules first.
-//     */
-//
-//    for (m_it = modmap->begin(); m_it != modmap->end(); m_it++) {
-//        LPIModuleList *ml = m_it->second;
-//
-//        proto = test_protocol_list(ml, data);
-//
-//        if (proto != NULL)
-//            break;
-//    }
-//
-//    return proto;
+            proto = test_protocol_list(ml, data);
 
-//}
+            if (proto != NULL){
+                return proto;
+            }
+        }
+    }
+    else{
+        list_for_each_entry(m_it, &UDP_protocols.list, list)
+        {
+            LPIModuleList *ml = m_it->lpiModuleList;
 
-//lpi_module_t *lpi_guess_protocol(lpi_data_t *data) {
-//    lpi_module_t *p = NULL;
-//
-//    if (!init_called) {
-//        printk(KERN_WARNING "lpi_init_library was never called - cannot guess the protocol\n");
-//        return NULL;
-//    }
-//
-//    switch (data->trans_proto) {
-//        case TRACE_IPPROTO_ICMP
-//            return lpi_icmp;
-//        case TRACE_IPPROTO_TCP:
-//            p = guess_protocol(&TCP_protocols, data);
-//            if (p == NULL)
-//                p = lpi_unknown_tcp;
-//            return p;
-//        case TRACE_IPPROTO_UDP:
-//            p = guess_protocol(&UDP_protocols, data);
-//            if (p == NULL)
-//                p = lpi_unknown_udp;
-//            return p;
-//        default:
-//            return lpi_unsupported;
-//    }
+            proto = test_protocol_list(ml, data);
 
-    //TODO Check
+            if (proto != NULL){
+                return proto;
+            }
+        }
 
-//    lpi_module_t *p = NULL;
-//
-//    if (!init_called) {
-//        fprintf(stderr, "lpi_init_library was never called - cannot guess the protocol\n");
-//        return NULL;
-//    }
-//
-//    switch (data->trans_proto) {
-//        case TRACE_IPPROTO_ICMP:
-//            return lpi_icmp;
-//        case TRACE_IPPROTO_TCP:
-//            p = guess_protocol(&TCP_protocols, data);
-//            if (p == NULL)
-//                p = lpi_unknown_tcp;
-//            return p;
-//
-//        case TRACE_IPPROTO_UDP:
-//            p = guess_protocol(&UDP_protocols, data);
-//            if (p == NULL)
-//                p = lpi_unknown_udp;
-//            return p;
-//        default:
-//            return lpi_unsupported;
-//    }
-//
-//
-//    return p;
-//}
+        return proto;
+    }
+}
 
 lpi_category_t lpi_categorise(lpi_module_t *module) {
 
@@ -649,32 +361,7 @@ const char *lpi_print_category(lpi_category_t category) {
 
 }
 
-//const char *lpi_print(lpi_protocol_t proto) {
 
-
-//    LPINameMap::iterator it;
-//
-//    it = lpi_names.find(proto);
-//
-//    if (it == lpi_names.end()) {
-//        return "NULL";
-//    }
-//    return (it->second);
-
-//}
-
-bool lpi_is_protocol_inactive(lpi_protocol_t proto) {
-
-//    LPINameMap::iterator it;
-//
-//    it = lpi_names.find(proto);
-//
-//    if (it == lpi_names.end()) {
-//        return true;
-//    }
-    return false;
-
-}
 
 ssize_t lpi_proc_write(struct file *file, const char __user *ubuf, size_t count, loff_t *ppos){
     printk( KERN_DEBUG "write handler\n");
@@ -682,7 +369,6 @@ ssize_t lpi_proc_write(struct file *file, const char __user *ubuf, size_t count,
 }
 
 ssize_t lpi_proc_read(struct file *file, char __user *ubuf, size_t count, loff_t *ppos){
-    //TODO Add a spinlock
     char buf[128] = {0};
     int index = 0;
     int len = 0;
@@ -691,9 +377,9 @@ ssize_t lpi_proc_read(struct file *file, char __user *ubuf, size_t count, loff_t
     LPIModuleList *node_list;
 
     list_for_each_entry(node, &(TCP_protocols.list), list){
-        list_for_each_entry(node_list, &node->lpiModuleList->list, list){
+        list_for_each_entry(node_list, &((node->lpiModuleList)->list), list){
             if(*ppos == index){
-                len = strlcpy(buf, node_list->lpi_module1.name, sizeof(buf));
+                len = strlcpy(buf, (node_list->lpi_module1).name, sizeof(buf));
                 if(copy_to_user(ubuf,buf,strlen(buf)+1))
                     return -EFAULT;
                 (*ppos)++;
